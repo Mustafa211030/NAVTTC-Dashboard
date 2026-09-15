@@ -1,0 +1,35 @@
+{
+  "name": "navttc-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NAVTTC PMYSDP Batch III - Training Provider Institute analytics dashboard",
+  "scripts": {
+    "regrade": "node scripts/apply-grading.mjs data/raw/source.xlsx",
+    "data": "node scripts/build-data.mjs",
+    "dev": "npm run data && next dev",
+    "build": "npm run data && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
+    "echarts": "^6.0.0",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^0.545.0",
+    "next": "^16.3.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.14",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

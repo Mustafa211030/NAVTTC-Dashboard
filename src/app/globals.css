@@ -1,0 +1,294 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * Design tokens (§52). Every colour, radius and shadow in the app
+ * resolves to one of these — no page defines its own palette.
+ * ------------------------------------------------------------------ */
+@theme {
+  --color-ink-50:  #f6f8fa;
+  --color-ink-100: #eef2f6;
+  --color-ink-200: #dde5ed;
+  --color-ink-300: #c2cfdd;
+  --color-ink-400: #8fa3b8;
+  --color-ink-500: #64798f;
+  --color-ink-600: #47596d;
+  --color-ink-700: #33455a;
+  --color-ink-800: #1e3049;
+  --color-ink-900: #12213a;
+  --color-ink-950: #0a1526;
+
+  --color-brand-50:  #eef4ff;
+  --color-brand-100: #d9e6ff;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+
+  --color-accent-500: #0d9488;
+  --color-good: #10b981;
+  --color-warn: #d97706;
+  --color-bad:  #dc2626;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", monospace;
+}
+
+:root {
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --surface-3: #eef2f6;
+  --border: #dde5ed;
+  --text: #12213a;
+  /* 4.49:1 at #64798f was a whisker under the 4.5 AA floor for small text. */
+  --text-muted: #5d7084;
+  /* Severity label text, tuned per theme — see SEVERITY_TEXT in config.ts */
+  --sev-high: #c81e1e;
+  --sev-medium: #a8560a;
+  --sev-low: #55627a;
+  --shadow-card: 0 1px 2px rgba(16, 33, 58, .05), 0 1px 3px rgba(16, 33, 58, .06);
+  --shadow-lift: 0 4px 12px rgba(16, 33, 58, .09), 0 2px 4px rgba(16, 33, 58, .05);
+}
+
+.dark {
+  --surface: #101c30;
+  --surface-2: #0a1526;
+  --surface-3: #17263d;
+  --border: #24374f;
+  --text: #eef4fb;
+  /* was #8fa3b8 — 6.4:1 on --surface, too dim for the 9–11px labels it drives.
+     #aec2d6 lifts that to ~8.6:1 while staying clearly secondary to --text. */
+  --text-muted: #aec2d6;
+  --sev-high: #f87171;
+  --sev-medium: #fbbf24;
+  --sev-low: #a3b3c6;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow-lift: 0 4px 14px rgba(0, 0, 0, .45);
+}
+
+/* ------------------------------------------------------------------ *
+ * DARK MODE LEGIBILITY
+ *
+ * These utilities are used without a `dark:` variant, so they keep their
+ * light-mode value on a dark surface. Each one below was measured against
+ * --surface (#101c30) and failed WCAG AA for small text.
+ * ------------------------------------------------------------------ */
+
+/* #1d4ed8 on #101c30 is ~2.2:1 — effectively invisible. Used for inline
+   links, the active-filter count and section icons. */
+.dark .text-brand-600 { color: #7fb0ff; }
+.dark .text-brand-700 { color: #9ec7ff; }
+.dark .hover\:text-brand-600:hover { color: #9ec7ff; }
+
+/* Semantic accents: readable on white, muddy on navy. */
+.dark .text-red-600    { color: #f87171; }
+.dark .text-amber-600  { color: #fbbf24; }
+.dark .text-emerald-600 { color: #34d399; }
+
+/* The sidebar is dark in BOTH themes, so its hint text was too dim in light
+   mode as well. Scoped to the sidebar so the utility is untouched elsewhere. */
+[data-sidebar] .text-ink-500 { color: #9fb2c6; }
+[data-sidebar] .text-ink-400 { color: #b2c3d4; }
+
+/* The brand mark injects its own <style> after this file, so it wins on
+   source order at equal specificity. This is the one place !important is
+   the honest fix rather than a specificity fight. */
+[data-sidebar] .vttg-tag { color: #93a7bd !important; }
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Numbers get their own treatment — dashboard typography lives or dies on this (§51) */
+.num { font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.02em; }
+
+/* Inline code appears throughout the Methodology and Data Quality copy. */
+code {
+  font-family: var(--font-mono);
+  font-size: .92em;
+  padding: .05em .3em;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+.card-hover { transition: box-shadow .18s ease, transform .18s ease; }
+.card-hover:hover { box-shadow: var(--shadow-lift); transform: translateY(-1px); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
+
+@keyframes riseIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.rise { animation: riseIn .32s cubic-bezier(.2,.7,.3,1) both; }
+
+:where(a, button, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar { width: 9px; height: 9px }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ------------------------------------------------------------------ *
+ * PRINT (§39-40)
+ * Prints only the current module. Sidebar, header, filter controls and
+ * every interactive affordance are removed; the report header and filter
+ * context are revealed.
+ * ------------------------------------------------------------------ */
+@media print {
+  /*
+   * margin: 0 suppresses the browser's own print header and footer — the
+   * date/time, the document title and the page URL that Chrome injects into
+   * the page margins. There is no CSS property that hides those individually;
+   * zeroing the page margin is what removes them.
+   *
+   * The real page margins are reapplied as padding on the printed containers
+   * below, so the layout is unchanged. Page numbers are rendered by the
+   * report itself rather than by the browser.
+   */
+  @page { size: A4 portrait; margin: 0; }
+
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10.5pt;
+  }
+  html.dark { color-scheme: light; }
+
+  .no-print, [data-sidebar], [data-appheader],
+  button, .filter-controls, [data-radix-popper-content-wrapper] { display: none !important; }
+
+  .print-only { display: block !important; }
+
+  main[data-printarea] {
+    position: static !important;
+    margin: 0 !important;
+    padding: 14mm 12mm 12mm 12mm !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .card {
+    border: 1px solid #c9d3de !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-break { break-before: page; page-break-before: always; }
+  .print-avoid { break-inside: avoid; page-break-inside: avoid; }
+
+  table { break-inside: auto }
+  thead { display: table-header-group }
+  tr { break-inside: avoid; page-break-inside: avoid }
+
+  /* keep chart colours */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  a[href]::after { content: "" }
+  .print-grid-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8mm !important; }
+  .print-full { width: 100% !important; }
+}
+
+.print-only { display: none; }
+
+/* ------------------------------------------------------------------ *
+ * SINGLE-PAGE INSTITUTE REPORT
+ *
+ * A purpose-built print layout that fits one institute's complete record
+ * — every trade row, every score component, every headcount — onto one
+ * A4 sheet. Screen content is suppressed entirely so the report is not a
+ * squeezed version of the web page but its own document.
+ * ------------------------------------------------------------------ */
+.onepager { display: none; }
+
+@media print {
+  /* When a one-pager is on the page, nothing else prints.
+     The sibling selector is the fallback for browsers without :has(). */
+  .onepager ~ .screen-only,
+  body:has(.onepager) .screen-only { display: none !important; }
+
+  .onepager {
+    /*
+     * Column flex so the page-number footer can be pushed to the physical
+     * bottom of the sheet with margin-top:auto, instead of sitting directly
+     * under whatever content happens to end last.
+     */
+    display: flex !important;
+    flex-direction: column;
+    /* Own margins, since @page has none. Box-sizing keeps the sheet exactly A4. */
+    box-sizing: border-box;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 11mm 11mm 8mm 11mm;
+    font-size: 7.2pt;
+    line-height: 1.28;
+    color: #000;
+  }
+
+  /* Pinned to the foot of the A4 sheet, whatever the content height. */
+  .onepager .page-foot { margin-top: auto; padding-top: 6pt; }
+
+  .onepager table { width: 100%; border-collapse: collapse; }
+  .onepager th, .onepager td { padding: 1.1pt 2.4pt; }
+  .onepager thead th {
+    border-bottom: 0.6pt solid #333;
+    font-size: 6.1pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    text-align: left;
+  }
+  .onepager tbody tr { border-bottom: 0.3pt solid #d7dee6; }
+  .onepager tbody tr:last-child { border-bottom: 0; }
+  .onepager .tot td { border-top: 0.6pt solid #333; font-weight: 700; }
+  .onepager .r { text-align: right; }
+  .onepager .matrix th, .onepager .matrix td { font-size: 6pt; padding: 1pt 1.2pt; }
+  .onepager .matrix .zero { color: #b91c1c; font-weight: 700; }
+  .onepager .band {
+    border: 0.6pt solid #333;
+    border-left: 2.4pt solid #000;
+    padding: 3pt 5pt;
+  }
+  .onepager .stat { border: 0.4pt solid #c9d3de; padding: 2.4pt 3pt; }
+  .onepager .stat .k { font-size: 5.6pt; text-transform: uppercase; letter-spacing: .03em; color: #444; }
+  .onepager .stat .v { font-size: 9.6pt; font-weight: 700; line-height: 1.05; }
+  .onepager h2 {
+    font-size: 6.4pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin: 5pt 0 2pt; border-bottom: 0.4pt solid #999; padding-bottom: 1pt;
+  }
+  .onepager .note { border: 0.6pt solid #b91c1c; padding: 3pt 5pt; }
+  /* Everything must stay on the single sheet. */
+  .onepager, .onepager * { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .onepager img { image-rendering: auto; }
+
+  main[data-printarea]:has(.onepager) { padding: 0 !important; }
+
+  /* Bulk batch: exactly one institute per sheet, no trailing blank page. */
+  .onepager-batch { display: block !important; }
+  .onepager-batch .onepager { break-after: page; page-break-after: always; }
+  .onepager-batch .onepager:last-child { break-after: auto; page-break-after: auto; }
+}
