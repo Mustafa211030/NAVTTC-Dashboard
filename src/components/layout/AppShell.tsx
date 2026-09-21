@@ -9,6 +9,7 @@ import {
 import { useTheme } from "../providers/ThemeProvider";
 import { BrandLogo } from "./BrandLogo";
 import { meta } from "@/lib/dataset";
+import { ChatWidget } from "../chat/ChatWidget";
 
 /**
  * Navigation. Only modules the data actually supports are present — there is
@@ -133,6 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           Data generated {meta.generatedAt.slice(0, 10)}
         </footer>
       </div>
+      <ChatWidget />
     </div>
   );
 }

@@ -13,13 +13,17 @@
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.76",
+    "@ai-sdk/react": "^4.0.110",
     "@tanstack/react-table": "^8.21.3",
+    "ai": "^7.0.107",
     "echarts": "^6.0.0",
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "lucide-react": "^0.545.0",
     "next": "^16.3.4",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",
