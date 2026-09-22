@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { MessageCircle, X, Send, Trash2 } from "lucide-react";
+import { MessageCircle, X, Send, Trash2, Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { useFilters } from "@/components/providers/FilterProvider";
 
 const STARTERS = [
@@ -20,6 +20,16 @@ export function ChatWidget() {
   const { messages, sendMessage, setMessages, status, error, stop } = useChat({ transport });
   const endRef = useRef<HTMLDivElement>(null);
 
+  // --- voice: mic input ---
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+
+  // --- voice: spoken replies ---
+  const [voiceReplies, setVoiceReplies] = useState(false);
+  const spokenIds = useRef<Set<string>>(new Set());
+
   const busy = status === "submitted" || status === "streaming";
   const last = messages[messages.length - 1];
   const waiting = busy && (!last || last.role === "user" || !last.parts.some((p) => p.type === "text" && p.text));
@@ -33,6 +43,58 @@ export function ChatWidget() {
     setInput("");
   };
 
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks.current = [];
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunks.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunks.current, { type: "audio/webm" });
+        setTranscribing(true);
+        try {
+          const fd = new FormData();
+          fd.append("audio", blob, "audio.webm");
+          const res = await fetch("/api/transcribe", { method: "POST", body: fd });
+          if (res.ok) {
+            const { text } = await res.json();
+            if (text) send(text);
+          }
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mediaRecorder.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch {
+      // mic permission denied or unsupported — fail silently, text input still works
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorder.current?.stop();
+    setRecording(false);
+  }
+
+  // Speak each new assistant reply once it finishes streaming, if voice replies are on
+  useEffect(() => {
+    if (!voiceReplies || status !== "ready") return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant" || spokenIds.current.has(last.id)) return;
+    const text = last.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+    if (!text) return;
+    spokenIds.current.add(last.id);
+    window.speechSynthesis?.cancel();
+    window.speechSynthesis?.speak(new SpeechSynthesisUtterance(text));
+  }, [messages, status, voiceReplies]);
+
+  // Stop any speech in flight if the panel closes or voice replies get turned off
+  useEffect(() => {
+    if (!open || !voiceReplies) window.speechSynthesis?.cancel();
+  }, [open, voiceReplies]);
+
   return (
     <div className="no-print">
       {open && (
@@ -44,6 +106,12 @@ export function ChatWidget() {
                 {hasFilters ? `Using your current filters (${activeCount})` : "Using all data"}
               </div>
             </div>
+            <button onClick={() => { setVoiceReplies((v) => !v); window.speechSynthesis?.cancel(); }}
+              aria-label={voiceReplies ? "Turn off spoken replies" : "Turn on spoken replies"}
+              title={voiceReplies ? "Spoken replies on" : "Spoken replies off"}
+              className="rounded-md p-1.5 hover:bg-[var(--surface-3)]">
+              {voiceReplies ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            </button>
             {messages.length > 0 && (
               <button onClick={() => setMessages([])} aria-label="Clear chat" className="rounded-md p-1.5 hover:bg-[var(--surface-3)]">
                 <Trash2 size={15} />
@@ -57,7 +125,7 @@ export function ChatWidget() {
           <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3">
             {messages.length === 0 && (
               <div className="space-y-2">
-                <p className="text-[12px] text-[var(--text-muted)]">Ask about institutes, regions, trades, scores or attendance.</p>
+                <p className="text-[12px] text-[var(--text-muted)]">Ask about institutes, regions, trades, scores or attendance — by typing or by voice.</p>
                 {STARTERS.map((s) => (
                   <button key={s} onClick={() => send(s)}
                     className="block w-full rounded-md border border-[var(--border)] px-3 py-2 text-left text-[12px] text-[var(--text)] hover:bg-[var(--surface-3)]">
@@ -79,6 +147,7 @@ export function ChatWidget() {
               );
             })}
 
+            {transcribing && <div className="text-[12px] text-[var(--text-muted)]">Transcribing…</div>}
             {waiting && <div className="text-[12px] text-[var(--text-muted)]">Analysing the data…</div>}
             {error && <div className="text-[12px] text-red-500">{error.message}</div>}
             <div ref={endRef} />
@@ -86,13 +155,21 @@ export function ChatWidget() {
 
           <form onSubmit={(e) => { e.preventDefault(); send(input); }}
             className="flex items-center gap-2 border-t border-[var(--border)] p-2.5">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question…"
-              className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-brand-600" />
+            <button type="button" onClick={recording ? stopRecording : startRecording} disabled={transcribing || busy}
+              aria-label={recording ? "Stop recording" : "Record a voice message"}
+              title={recording ? "Stop recording" : "Record a voice message"}
+              className={`shrink-0 rounded-md p-2 transition-colors ${
+                recording ? "bg-red-600 text-white" : "bg-[var(--surface-3)] text-[var(--text)] hover:opacity-80"} disabled:opacity-40`}>
+              {recording ? <Square size={15} /> : <Mic size={15} />}
+            </button>
+            <input value={input} onChange={(e) => setInput(e.target.value)}
+              placeholder={recording ? "Listening…" : "Ask a question…"} disabled={recording}
+              className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-brand-600 disabled:opacity-60" />
             {busy ? (
-              <button type="button" onClick={stop} className="rounded-md bg-[var(--surface-3)] px-3 py-2 text-[12px]">Stop</button>
+              <button type="button" onClick={stop} className="shrink-0 rounded-md bg-[var(--surface-3)] px-3 py-2 text-[12px]">Stop</button>
             ) : (
-              <button type="submit" disabled={!input.trim()} aria-label="Send"
-                className="rounded-md bg-brand-600 p-2 text-white disabled:opacity-40">
+              <button type="submit" disabled={!input.trim() || recording} aria-label="Send"
+                className="shrink-0 rounded-md bg-brand-600 p-2 text-white disabled:opacity-40">
                 <Send size={15} />
               </button>
             )}
