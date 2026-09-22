@@ -1,18 +1,17 @@
-import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
 import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from "ai";
 import { buildTools, buildSystemPrompt, filtersSchema } from "@/lib/chat-tools";
 import { EMPTY_FILTERS } from "@/lib/filters";
 
 export const maxDuration = 30;
 
-// Light per-IP throttle. In-memory, so it is best-effort on serverless.
 const hits = new Map<string, number[]>();
 function limited(ip: string) {
   const now = Date.now();
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < 60_000);
   recent.push(now);
   hits.set(ip, recent);
-  return recent.length > 8;
+  return recent.length > 20; // Groq's free RPM is much higher than Gemini's, so this can loosen too
 }
 
 export async function POST(req: Request) {
@@ -27,9 +26,9 @@ export async function POST(req: Request) {
   const filters = parsed.success ? parsed.data : EMPTY_FILTERS;
 
   const result = streamText({
-    model: google(process.env.GEMINI_MODEL ?? "gemini-2.5-flash"),
+    model: groq(process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile"),
     system: buildSystemPrompt(filters),
-    messages: await convertToModelMessages(messages.slice(-10)), // keep token use low on the free tier
+    messages: await convertToModelMessages(messages.slice(-10)),
     tools: buildTools(filters),
     stopWhen: stepCountIs(6),
     temperature: 0.2,
@@ -40,7 +39,7 @@ export async function POST(req: Request) {
     onError: (e) => {
       console.error(e);
       const m = String((e as { message?: string })?.message ?? e);
-      return /429|quota|rate/i.test(m)
+      return /429|rate.?limit/i.test(m)
         ? "Free-tier rate limit reached. Wait about a minute and try again."
         : "Something went wrong reaching the AI service.";
     },
