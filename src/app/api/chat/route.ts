@@ -1,6 +1,6 @@
 import { groq } from "@ai-sdk/groq";
 import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from "ai";
-import { buildTools, buildSystemPrompt, filtersSchema } from "@/lib/chat-tools";
+import { buildTools, buildSystemPrompt, filtersSchema, scopeSchema } from "@/lib/chat-tools";
 import { EMPTY_FILTERS } from "@/lib/filters";
 
 export const maxDuration = 30;
@@ -24,12 +24,14 @@ export async function POST(req: Request) {
 
   const parsed = filtersSchema.safeParse(body.filters);
   const filters = parsed.success ? parsed.data : EMPTY_FILTERS;
+  const sc = scopeSchema.safeParse(body.scope);
+  const scope = sc.success ? sc.data ?? null : null;
 
   const result = streamText({
     model: groq(process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile"),
-    system: buildSystemPrompt(filters),
+    system: buildSystemPrompt(filters, scope),
     messages: await convertToModelMessages(messages.slice(-10)),
-    tools: buildTools(filters),
+    tools: buildTools(filters, scope),
     stopWhen: stepCountIs(6),
     temperature: 0.2,
     abortSignal: req.signal,

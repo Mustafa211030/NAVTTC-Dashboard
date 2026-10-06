@@ -40,7 +40,7 @@ type MetricKey = "institutes" | "trades" | "registered" | "verified" | "attendan
 const METRICS: { key: MetricKey; label: string; short: string; format: (n: number) => string }[] = [
   { key: "institutes", label: "Institutes", short: "TPIs", format: (n) => fmtInt(n) },
   { key: "trades", label: "Distinct trades", short: "Trades", format: (n) => fmtInt(n) },
-  { key: "registered", label: "Trainees registered", short: "Registered", format: (n) => fmtInt(n) },
+  { key: "registered", label: "Trainees enrolled", short: "Enrolled", format: (n) => fmtInt(n) },
   { key: "verified", label: "CNIC verified", short: "Verified", format: (n) => fmtInt(n) },
   { key: "attendance", label: "Attendance %", short: "Attendance", format: (n) => n.toFixed(1) + "%" },
   { key: "score", label: "Mean score", short: "Score", format: (n) => n.toFixed(1) },
@@ -53,6 +53,7 @@ const UNCOVERED_DARK = "#1b293d";
 
 export function PakistanMap() {
   const { rows, filters, patch, isEmpty } = useFilters();
+  void isEmpty;
   const [metric, setMetric] = useState<MetricKey>("institutes");
   const [ready, setReady] = useState(false);
   const [full, setFull] = useState(false);
@@ -66,11 +67,11 @@ export function PakistanMap() {
   /* ------------------------- aggregation ------------------------- */
 
   const tradesByKey = useCallback((keyFn: (r: (typeof rows)[number]) => string) => {
-    const m = new Map<string, Set<number>>();
+    const m = new Map<string, Set<string>>();
     for (const r of rows) {
       const k = keyFn(r);
       if (!m.has(k)) m.set(k, new Set());
-      m.get(k)!.add(r.tradeCode);
+      m.get(k)!.add(r.tradeNorm);
     }
     return m;
   }, [rows]);
@@ -92,14 +93,14 @@ export function PakistanMap() {
     [rows]);
 
   const valueOf = useCallback(
-    (s: { institutes: number; trades: number; registered: number; verified: number; attendanceRate: number | null; meanScore: number }) => {
+    (s: { institutes: number; trades: number; enrolled: number; verified: number; attendanceRate: number | null; meanScore: number | null }) => {
       switch (metric) {
         case "institutes": return s.institutes;
         case "trades": return s.trades;
-        case "registered": return s.registered;
+        case "registered": return s.enrolled;
         case "verified": return s.verified;
         case "attendance": return (s.attendanceRate ?? 0) * 100;
-        case "score": return s.meanScore;
+        case "score": return s.meanScore ?? 0;
       }
     }, [metric]);
 
@@ -186,12 +187,12 @@ export function PakistanMap() {
             ? q.data?.stats
             : provinces.find((x) => x.name === q.name)?.stats ?? undefined;
           if (q.seriesType === "map" && !s)
-            return `<b>${q.name}</b><br/><span style="opacity:.7">Not part of this assessment round</span>`;
+            return `<b>${q.name}</b><br/><span style="opacity:.7">No programme coverage in the current view</span>`;
           if (!s) return "";
           const title = q.seriesType === "scatter" ? s.key : q.name;
           return `<b>${title}</b><br/>
             ${s.institutes} institutes · ${s.trades} trades<br/>
-            ${fmtInt(s.registered)} registered · ${fmtInt(s.verified)} CNIC verified<br/>
+            ${fmtInt(s.enrolled)} enrolled · ${fmtInt(s.verified)} CNIC verified<br/>
             Attendance ${fmtPct(s.attendanceRate)}<br/>
             Mean score <b>${fmtScore(s.meanScore, 1)}</b><br/>
             <span style="opacity:.6;font-size:11px">Click to filter</span>`;
@@ -254,7 +255,7 @@ export function PakistanMap() {
           symbolSize: (v: unknown) => 7 + Math.sqrt(Math.max((v as number[])[2] ?? 0, 0) / maxBubble) * 22,
           itemStyle: {
             color: (p: unknown) =>
-              GRADE_COLORS[computedTier((p as { data: { stats: { meanScore: number } } }).data.stats.meanScore).label],
+              GRADE_COLORS[computedTier((p as { data: { stats: { meanScore: number | null } } }).data.stats.meanScore ?? 0).label],
             borderColor: dark ? "#0a1526" : "#fff",
             borderWidth: 1.2,
             opacity: 0.92,
@@ -286,6 +287,7 @@ export function PakistanMap() {
   const provincesRef = useRef(provinces); provincesRef.current = provinces;
   const filtersRef = useRef(filters); filtersRef.current = filters;
   const patchRef = useRef(patch); patchRef.current = patch;
+  const optionRef = useRef<EChartsOption | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -299,6 +301,8 @@ export function PakistanMap() {
 
       const inst = echarts.init(elRef.current, undefined, { renderer: "canvas", useDirtyRect: true });
       chartRef.current = inst;
+      // The option may have been computed before the async init finished.
+      if (optionRef.current) inst.setOption(optionRef.current, { notMerge: true });
       setReady(true);
 
       inst.on("click", (p: { seriesType?: string; componentType?: string; name?: string }) => {
@@ -343,6 +347,7 @@ export function PakistanMap() {
      * "setOption should not be called during main process". Waiting a frame
      * guarantees the dispatch has finished.
      */
+    optionRef.current = option;
     const id = requestAnimationFrame(() => {
       const inst = chartRef.current;
       if (!inst || inst.isDisposed()) return;
@@ -471,7 +476,7 @@ export function PakistanMap() {
                   className={`flex w-full items-center gap-2 border-b border-[var(--border)] px-3 py-1.5 text-left transition-colors last:border-0 ${
                     on ? "bg-amber-50 dark:bg-amber-950/30" : "hover:bg-[var(--surface-3)]"}`}>
                   <span className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: GRADE_COLORS[computedTier(d.meanScore).label] }} />
+                    style={{ background: GRADE_COLORS[computedTier(d.meanScore ?? 0).label] }} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[11px] font-medium">{d.key}</span>
                     <span className="block truncate text-[9.5px] text-[var(--text-muted)]">

@@ -5,15 +5,22 @@ import { DefaultChatTransport } from "ai";
 import { MessageCircle, X, Send, Trash2, Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { useFilters } from "@/components/providers/FilterProvider";
 
-const STARTERS = [
-  "Summarize the current view",
-  "Which 10 institutes score lowest?",
-  "What drives the score the most?",
+const STARTERS_ALL = [
+  "Compare all programmes on score and attendance",
+  "Which 10 institutes score lowest across programmes?",
+  "How did institutes change from PMYSDP B-II to B-III?",
   "Which region has the highest dropout?",
+];
+const STARTERS_PROG = [
+  "Summarize this programme",
+  "Which 10 institutes score lowest?",
+  "Which criteria drive the score the most?",
+  "Which district has the lowest attendance?",
 ];
 
 export function ChatWidget() {
-  const { filters, hasFilters, activeCount } = useFilters();
+  const { filters, hasFilters, activeCount, scope } = useFilters();
+  const STARTERS = scope.program ? STARTERS_PROG : STARTERS_ALL;
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [transport] = useState(() => new DefaultChatTransport({ api: "/api/chat/" }));
@@ -39,7 +46,7 @@ export function ChatWidget() {
   const send = (text: string) => {
     const t = text.trim();
     if (!t || busy) return;
-    sendMessage({ text: t }, { body: { filters } }); // current dashboard filters travel with every question
+    sendMessage({ text: t }, { body: { filters, scope: scope.program?.slug ?? null } }); // current dashboard filters travel with every question
     setInput("");
   };
 
@@ -103,7 +110,7 @@ export function ChatWidget() {
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-[var(--text)]">Data assistant</div>
               <div className="truncate text-[11px] text-[var(--text-muted)]">
-                {hasFilters ? `Using your current filters (${activeCount})` : "Using all data"}
+                {`${scope.label}${hasFilters ? ` · ${activeCount} filter${activeCount === 1 ? "" : "s"}` : ""}`}
               </div>
             </div>
             <button onClick={() => { setVoiceReplies((v) => !v); window.speechSynthesis?.cancel(); }}

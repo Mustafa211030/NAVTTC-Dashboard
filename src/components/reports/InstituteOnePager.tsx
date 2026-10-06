@@ -1,7 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import type { AssessmentRow, Institute } from "@/types";
-import { components, categories, meta } from "@/lib/dataset";
+import type { AssessmentRow, Institute, Program } from "@/types";
 import { Letterhead } from "./Letterhead";
 import { gradeOf, TIER_RUBRIC, fmtInt, fmtPct, fmtScore } from "@/config";
 
@@ -27,7 +26,10 @@ const CODES: Record<string, string> = {
   trainerDegree: "TDEG", trainerExp: "TEXP", tools: "TOOL", consumables: "CONS",
   portfolio: "PORT", tlmImpl: "TLMI", tlmProv: "TLMP", assessment: "ASMT",
   indLinkage: "LINK", jobFair: "FAIR", ojt: "OJT", studentFeedback: "FDBK",
+  tlm: "TLM", biometricDevice: "BDEV", signBoard: "SIGN", biometricSync: "BSYN", enrolmentPms: "EPMS",
+  labs: "LABS", lessonPlans: "LSPL", courseContent: "CONT", impression: "IMPR",
 };
+const codeOf = (key: string, label: string) => CODES[key] ?? label.replace(/[^A-Za-z ]/g, "").split(/\s+/).map((w) => w[0]).join("").slice(0, 4).toUpperCase();
 
 const n = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, ""));
 
@@ -35,9 +37,10 @@ const n = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace
 const FILL = { best: "#1a7f4b", mid: "#3d5a80", worst: "#a32020", track: "#dde3ea" };
 
 export function InstituteOnePager({
-  inst, rows, pageNumber = 1, pageCount = 1,
+  inst, rows, program, pageNumber = 1, pageCount = 1,
 }: {
   inst: Institute;
+  program: Program;
   rows: AssessmentRow[];
   /**
    * Page numbering is rendered by the report, not by the browser.
@@ -52,6 +55,8 @@ export function InstituteOnePager({
   pageCount?: number;
 }) {
   const grade = gradeOf(inst);
+  const components = program.rubric.components;
+  const categories = program.rubric.categories.filter((c) => c.max > 0);
   const sum = (k: keyof AssessmentRow) => rows.reduce((a, r) => a + ((r[k] as number) ?? 0), 0);
 
   /** Categories as a percentage of their own maximum, so unequal weights compare fairly. */
@@ -62,7 +67,7 @@ export function InstituteOnePager({
         return { ...c, value: v, pct: c.max > 0 ? (v / c.max) * 100 : 0 };
       })
       .sort((a, b) => b.pct - a.pct),
-    [inst]);
+    [inst, categories]);
 
   const compRanked = useMemo(
     () => components
@@ -71,20 +76,20 @@ export function InstituteOnePager({
         return { ...c, value: v, pct: c.max > 0 ? (v / c.max) * 100 : 0 };
       })
       .sort((a, b) => b.pct - a.pct),
-    [inst]);
+    [inst, components]);
 
   const strongest = catRanked[0];
   const weakest = catRanked[catRanked.length - 1];
 
   const stats: [string, string][] = [
     ["Approved capacity", fmtInt(inst.approvedCapacity)],
-    ["Registered", fmtInt(inst.biometricRegistered)],
+    [program.enrolledLabel, fmtInt(inst.enrolled)],
     ["Present", fmtInt(inst.present)],
     ["Absent", fmtInt(inst.absent)],
     ["Dropped out", fmtInt(inst.droppedOut)],
     ["CNIC verified", fmtInt(inst.cnicVerified)],
     ["Attendance %", fmtPct(inst.attendanceRate)],
-    ["Utilization %", fmtPct(inst.utilizationRate)],
+    ["Utilisation %", fmtPct(inst.utilizationRate)],
   ];
 
   /* Category chart drawn as SVG so it stays crisp at any print resolution. */
@@ -103,8 +108,8 @@ export function InstituteOnePager({
           </div>
           <div style={{ fontSize: "11.5pt", fontWeight: 700, lineHeight: 1.12, marginTop: "1.5pt" }}>{inst.instituteName}</div>
           <div style={{ fontSize: "6.6pt", color: "#333", marginTop: "1pt" }}>
-            Institute ID {inst.instituteId} · {inst.district}, {inst.region} · {inst.package ?? "—"} ·{" "}
-            {inst.assessments} trade{inst.assessments === 1 ? "" : "s"} assessed · {meta.program}
+            Institute ID {inst.instituteId ?? "not recorded"} · {inst.district}, {inst.region} · {inst.package ?? "—"} ·{" "}
+            {inst.assessments} trade{inst.assessments === 1 ? "" : "s"} assessed · {program.name}
           </div>
         </div>
         <div className="band" style={{ textAlign: "right", minWidth: "104pt" }}>
@@ -112,7 +117,7 @@ export function InstituteOnePager({
           <div style={{ fontSize: "19pt", fontWeight: 800, lineHeight: 1 }}>{fmtScore(inst.score, 1)}</div>
           <div style={{ fontSize: "7pt", fontWeight: 700, marginTop: "1pt" }}>{grade}</div>
           <div style={{ fontSize: "5.4pt", color: "#444" }}>{TIER_RUBRIC[grade] ?? ""}</div>
-          <div style={{ fontSize: "5.8pt", color: "#444" }}>Rank {inst.rank} of {meta.instituteCount}</div>
+          <div style={{ fontSize: "5.8pt", color: "#444" }}>Rank {inst.rank} of {program.instituteCount} in {program.short}</div>
         </div>
       </div>
 
@@ -203,7 +208,7 @@ export function InstituteOnePager({
           <tr>
             <th style={{ width: "31%" }}>Trade</th>
             <th className="r">Code</th><th className="r">Batch</th><th className="r">Cap.</th>
-            <th className="r">Reg.</th><th className="r">Pres.</th><th className="r">Abs.</th>
+            <th className="r">Enr.</th><th className="r">Pres.</th><th className="r">Abs.</th>
             <th className="r">Drop.</th><th className="r">CNIC</th><th className="r">Att. %</th><th className="r">Pres. %</th>
             <th className="r">Score</th><th className="r">Row</th>
           </tr>
@@ -215,7 +220,7 @@ export function InstituteOnePager({
               <td className="r">{r.tradeCode}</td>
               <td className="r">{r.batch ?? "—"}</td>
               <td className="r">{r.approvedCapacity}</td>
-              <td className="r">{r.biometricRegistered}</td>
+              <td className="r">{r.enrolled}</td>
               <td className="r">{r.present}</td>
               <td className="r">{r.absent}</td>
               <td className="r">{r.droppedOut}</td>
@@ -229,7 +234,7 @@ export function InstituteOnePager({
           <tr className="tot">
             <td>Institute total</td><td className="r" /><td className="r" />
             <td className="r">{sum("approvedCapacity")}</td>
-            <td className="r">{sum("biometricRegistered")}</td>
+            <td className="r">{sum("enrolled")}</td>
             <td className="r">{sum("present")}</td>
             <td className="r">{sum("absent")}</td>
             <td className="r">{sum("droppedOut")}</td>
@@ -243,12 +248,12 @@ export function InstituteOnePager({
       </table>
 
       {/* ---- every component, for every trade ---- */}
-      <h2>Score components by trade — all 16 components, max 100</h2>
+      <h2>Score components by trade — all {components.length} criteria, max 100</h2>
       <table className="matrix">
         <thead>
           <tr>
             <th style={{ width: "26%" }}>Trade</th>
-            {components.map((c) => <th key={c.key} className="r" title={c.label}>{CODES[c.key]}</th>)}
+            {components.map((c) => <th key={c.key} className="r" title={c.label}>{codeOf(c.key, c.label)}</th>)}
             <th className="r">Total</th>
           </tr>
           <tr>
@@ -264,8 +269,8 @@ export function InstituteOnePager({
             <tr key={r.id}>
               <td>{r.tradeName.length > 38 ? r.tradeName.slice(0, 37) + "…" : r.tradeName}</td>
               {components.map((c) => {
-                const v = r.components[c.key];
-                return <td key={c.key} className={`r${v === 0 ? " zero" : ""}`}>{n(v)}</td>;
+                const v = r.components[c.key] ?? 0;
+                return <td key={c.key} className={`r${v === 0 && r.scored ? " zero" : ""}`}>{r.scored ? n(v) : "—"}</td>;
               })}
               <td className="r" style={{ fontWeight: 700 }}>{fmtScore(r.tradeScore, 1)}</td>
             </tr>
@@ -278,16 +283,16 @@ export function InstituteOnePager({
         </tbody>
       </table>
       <div style={{ fontSize: "5.5pt", color: "#555", marginTop: "1.5pt" }}>
-        {components.map((c) => `${CODES[c.key]} ${c.label}`).join("  ·  ")}
+        {components.map((c) => `${codeOf(c.key, c.label)} ${c.label}`).join("  ·  ")}
       </div>
 
       {/* ---- provenance ---- */}
       <div style={{ display: "flex", justifyContent: "space-between", gap: "8pt", borderTop: "0.6pt solid #333", marginTop: "5pt", paddingTop: "2.5pt", fontSize: "5.6pt", color: "#444" }}>
-        <span>Source: {meta.sourceFile} · sheet &ldquo;{meta.sheet}&rdquo; · assessment {meta.assessmentDate}</span>
+        <span>Source: {program.sourceFile} · sheet &ldquo;{program.sheet}&rdquo; · {program.period ? `visits ${program.period.from} to ${program.period.to}` : program.assessmentDate ? `assessment ${program.assessmentDate}` : "visit date not recorded"}{inst.visitDate ? ` · visited ${inst.visitDate}` : ""}</span>
         <span style={{ textAlign: "right" }}>
-          Attendance % = CNIC Verified ÷ Approved Capacity · Presence % = Present ÷ Registered
+          Attendance % = {program.attendanceRule.label} · Presence % = Present ÷ {program.enrolledLabel}
           <br />
-          Remarks band: {TIER_RUBRIC[grade] ?? "—"} · official NAVTTC rubric
+          Remarks band: {TIER_RUBRIC[grade] ?? (inst.gradeOverride ? "workbook override" : "—")} · {program.rubric.label}
           {inst.gradeReported && inst.gradeReported !== grade ? ` · workbook states “${inst.gradeReported}”` : ""}
         </span>
       </div>

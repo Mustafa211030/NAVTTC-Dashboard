@@ -292,3 +292,12 @@ code {
   .onepager-batch .onepager { break-after: page; page-break-after: always; }
   .onepager-batch .onepager:last-child { break-after: auto; page-break-after: auto; }
 }
+/* Boot progress bar */
+@keyframes bootbar { 0% { transform: translateX(-100%) } 100% { transform: translateX(300%) } }
+.boot-bar { animation: bootbar 1.1s ease-in-out infinite; }
+.bg-white\/8 { background-color: rgb(255 255 255 / .08); }
+.bg-white\/12 { background-color: rgb(255 255 255 / .12); }
+
+/* Grid children may shrink below their content's min width (long institute
+   names, tables) instead of forcing horizontal page scroll on phones. */
+.grid > * { min-width: 0; }

@@ -1,91 +1,82 @@
-import type { AssessmentRow, FilterState, Institute } from "../types";
-import { gradeOf } from "../config";
+import type { AssessmentRow, FilterState } from "../types";
 
 export const EMPTY_FILTERS: FilterState = {
-  region: [], district: [], package: [], trade: [], batch: [], grade: [],
-  search: "", scoreMin: null, scoreMax: null,
+  program: [], region: [], district: [], package: [], trade: [], batch: [], grade: [], status: [],
+  search: "", scoreMin: null, scoreMax: null, flaggedOnly: false,
 };
 
-export const isActive = (f: FilterState): boolean =>
-  f.region.length > 0 || f.district.length > 0 || f.package.length > 0 ||
-  f.trade.length > 0 || f.batch.length > 0 || f.grade.length > 0 ||
-  f.search.trim() !== "" || f.scoreMin !== null || f.scoreMax !== null;
+export const isActive = (f: FilterState): boolean => countActive(f) > 0;
 
 export function countActive(f: FilterState): number {
-  return f.region.length + f.district.length + f.package.length + f.trade.length +
-    f.batch.length + f.grade.length + (f.search.trim() ? 1 : 0) +
-    (f.scoreMin !== null || f.scoreMax !== null ? 1 : 0);
+  return f.program.length + f.region.length + f.district.length + f.package.length + f.trade.length +
+    f.batch.length + f.grade.length + f.status.length + (f.search.trim() ? 1 : 0) +
+    (f.scoreMin !== null || f.scoreMax !== null ? 1 : 0) + (f.flaggedOnly ? 1 : 0);
 }
 
+/** Per-institute facts the row filter needs: resolved grade, status and flag. */
+export interface InstFacts { grade: string; status: string; flagged: boolean }
+export const instKey = (p: string, instituteKey: string) => `${p}|${instituteKey}`;
+
 /**
- * Applies every filter to the assessment rows. This is the only filtering
- * implementation in the app — KPIs, charts, tables and exports all read the
- * output of this function, so a filter can never be visual-only.
+ * The only filtering implementation in the app. KPIs, charts, tables and
+ * exports all read its output, so a filter can never be visual-only.
+ * `ignore` lets a chart compute its own option counts without its own filter.
  */
-export function applyFilters(all: AssessmentRow[], f: FilterState, gradeByInstitute: Map<number, string>): AssessmentRow[] {
+export function applyFilters(
+  all: AssessmentRow[], f: FilterState, facts: Map<string, InstFacts>, ignore: (keyof FilterState)[] = [],
+): AssessmentRow[] {
   const q = f.search.trim().toLowerCase();
+  const on = (k: keyof FilterState) => !ignore.includes(k);
   return all.filter((r) => {
-    if (f.region.length && !f.region.includes(r.region)) return false;
-    if (f.district.length && !f.district.includes(r.district)) return false;
-    if (f.package.length && (!r.package || !f.package.includes(r.package))) return false;
-    if (f.trade.length && !f.trade.includes(r.tradeCode)) return false;
-    if (f.batch.length && (r.batch === null || !f.batch.includes(r.batch))) return false;
-    if (f.grade.length) {
-      const g = gradeByInstitute.get(r.instituteId);
-      if (!g || !f.grade.includes(g)) return false;
+    if (on("program") && f.program.length && !f.program.includes(r.p)) return false;
+    if (on("region") && f.region.length && !f.region.includes(r.region)) return false;
+    if (on("district") && f.district.length && !f.district.includes(r.district)) return false;
+    if (on("package") && f.package.length && (!r.package || !f.package.includes(r.package))) return false;
+    if (on("trade") && f.trade.length && !f.trade.includes(r.tradeNorm)) return false;
+    if (on("batch") && f.batch.length && (r.batch === null || !f.batch.includes(r.batch))) return false;
+    if ((on("grade") && f.grade.length) || (on("status") && f.status.length) || f.flaggedOnly) {
+      const fx = facts.get(instKey(r.p, r.instituteKey));
+      if (on("grade") && f.grade.length && (!fx || !f.grade.includes(fx.grade))) return false;
+      if (on("status") && f.status.length && (!fx || !f.status.includes(fx.status))) return false;
+      if (f.flaggedOnly && !fx?.flagged) return false;
     }
-    if (f.scoreMin !== null && r.tradeScore < f.scoreMin) return false;
-    if (f.scoreMax !== null && r.tradeScore > f.scoreMax) return false;
+    if (on("scoreMin") && f.scoreMin !== null && (r.tradeScore === null || r.tradeScore < f.scoreMin)) return false;
+    if (on("scoreMax") && f.scoreMax !== null && (r.tradeScore === null || r.tradeScore > f.scoreMax)) return false;
     if (q) {
-      const hay = `${r.instituteName} ${r.district} ${r.region} ${r.tradeName} ${r.instituteId}`.toLowerCase();
+      const hay = `${r.instituteName} ${r.district} ${r.region} ${r.tradeName} ${r.instituteId ?? ""} ${r.division ?? ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
   });
 }
 
-/** Districts valid for the currently selected regions — powers cascading. */
-export function availableDistricts(regionDistricts: Record<string, string[]>, selectedRegions: string[]): string[] {
-  if (!selectedRegions.length) return [...new Set(Object.values(regionDistricts).flat())].sort();
-  return [...new Set(selectedRegions.flatMap((r) => regionDistricts[r] ?? []))].sort();
-}
-
-/** Trades that still occur within the current geographic/package selection. */
-export function availableTrades(all: AssessmentRow[], f: FilterState): Set<number> {
-  const scoped = all.filter((r) =>
-    (!f.region.length || f.region.includes(r.region)) &&
-    (!f.district.length || f.district.includes(r.district)) &&
-    (!f.package.length || (r.package !== null && f.package.includes(r.package))));
-  return new Set(scoped.map((r) => r.tradeCode));
-}
-
-export function buildGradeMap(institutes: Institute[]): Map<number, string> {
-  return new Map(institutes.map((i) => [i.instituteId, gradeOf(i)]));
-}
-
-/* ----------------------- URL serialization (§55) ----------------------- */
+/* ----------------------- URL serialization ----------------------- */
 
 export function filtersToParams(f: FilterState): URLSearchParams {
   const p = new URLSearchParams();
-  if (f.region.length) p.set("region", f.region.join(","));
-  if (f.district.length) p.set("district", f.district.join(","));
-  if (f.package.length) p.set("package", f.package.join(","));
-  if (f.trade.length) p.set("trade", f.trade.join(","));
-  if (f.batch.length) p.set("batch", f.batch.join(","));
-  if (f.grade.length) p.set("grade", f.grade.join(","));
+  const list = (k: string, v: (string | number)[]) => { if (v.length) p.set(k, v.join("~")); };
+  list("prog", f.program);
+  list("region", f.region);
+  list("district", f.district);
+  list("package", f.package);
+  list("trade", f.trade);
+  list("batch", f.batch);
+  list("grade", f.grade);
+  list("status", f.status);
   if (f.search.trim()) p.set("q", f.search.trim());
   if (f.scoreMin !== null) p.set("smin", String(f.scoreMin));
   if (f.scoreMax !== null) p.set("smax", String(f.scoreMax));
+  if (f.flaggedOnly) p.set("flagged", "1");
   return p;
 }
 
 export function paramsToFilters(p: URLSearchParams): FilterState {
-  const list = (k: string) => (p.get(k) ? p.get(k)!.split(",").filter(Boolean) : []);
+  const list = (k: string) => (p.get(k) ? p.get(k)!.split("~").filter(Boolean) : []);
   const nums = (k: string) => list(k).map(Number).filter((n) => !Number.isNaN(n));
   const num = (k: string) => (p.get(k) !== null && p.get(k) !== "" ? Number(p.get(k)) : null);
   return {
-    region: list("region"), district: list("district"), package: list("package"),
-    trade: nums("trade"), batch: nums("batch"), grade: list("grade"),
-    search: p.get("q") ?? "", scoreMin: num("smin"), scoreMax: num("smax"),
+    program: list("prog"), region: list("region"), district: list("district"), package: list("package"),
+    trade: list("trade"), batch: nums("batch"), grade: list("grade"), status: list("status"),
+    search: p.get("q") ?? "", scoreMin: num("smin"), scoreMax: num("smax"), flaggedOnly: p.get("flagged") === "1",
   };
 }

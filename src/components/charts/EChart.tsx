@@ -24,6 +24,10 @@ export const EChart = forwardRef<EChartHandle, {
   const chart = useRef<EChartsType | null>(null);
   const [ready, setReady] = useState(false);
   const { dark } = useTheme();
+  // Handlers change every render (they close over filter state); bind a stable
+  // wrapper once and always call the latest handler through a ref.
+  const handlerRef = useRef(onEvent);
+  handlerRef.current = onEvent;
 
   useImperativeHandle(ref, () => ({
     getPng: () =>
@@ -44,7 +48,9 @@ export const EChart = forwardRef<EChartHandle, {
         useDirtyRect: true,
       });
       chart.current.setOption(withTheme(option, dark), true);
-      if (onEvent) chart.current.on(onEvent.type, onEvent.handler);
+      for (const t of ["click", "dblclick"]) {
+        chart.current.on(t, (p: unknown) => { if (handlerRef.current?.type === t) handlerRef.current.handler(p); });
+      }
       setReady(true);
 
       ro = new ResizeObserver(() => chart.current?.resize());
@@ -68,7 +74,7 @@ export const EChart = forwardRef<EChartHandle, {
   return (
     <div className="relative w-full" style={{ height }}>
       {!ready && <Skeleton className="absolute inset-0" />}
-      <div ref={el} role="img" aria-label={ariaLabel} className="h-full w-full" />
+      <div ref={el} role="img" aria-label={ariaLabel} className={`h-full w-full ${onEvent ? "[&_path]:cursor-pointer" : ""}`} />
     </div>
   );
 });
@@ -80,6 +86,8 @@ export function withTheme(option: EChartsOption, dark: boolean): EChartsOption {
   const split = dark ? "#24374f" : "#eef2f6";
   const axis = { axisLine: { lineStyle: { color: split } }, axisLabel: { color: muted, fontSize: 11 }, splitLine: { lineStyle: { color: split } } };
   return {
+    animationDuration: 600,
+    animationEasing: "cubicOut",
     textStyle: { fontFamily: "Inter, system-ui, sans-serif", color: text },
     tooltip: {
       backgroundColor: dark ? "#17263d" : "#ffffff",
@@ -92,6 +100,7 @@ export function withTheme(option: EChartsOption, dark: boolean): EChartsOption {
     ...option,
     xAxis: mergeAxis(option.xAxis, axis),
     yAxis: mergeAxis(option.yAxis, axis),
+    series: themeSeries(option.series, text, dark),
   } as EChartsOption;
 }
 
@@ -99,4 +108,19 @@ function mergeAxis(a: unknown, base: object): unknown {
   if (!a) return a;
   if (Array.isArray(a)) return a.map((x) => ({ ...base, ...x }));
   return { ...base, ...(a as object) };
+}
+
+/** Value labels drawn outside the marks take the theme's text colour, with no halo. */
+function themeSeries(series: unknown, text: string, dark: boolean): unknown {
+  if (!series) return series;
+  const fix = (sr: Record<string, unknown>) => {
+    const label = sr.label as Record<string, unknown> | undefined;
+    if (!label || label.color) return sr;
+    const pos = String(label.position ?? "");
+    const outside = /^(top|right|bottom|left|end)$/.test(pos) || (sr.type === "heatmap") || (sr.type === "radar");
+    if (!outside) return sr;
+    return { ...sr, label: { ...label, color: sr.type === "heatmap" ? "#0f172a" : text, textBorderWidth: 0 } };
+  };
+  void dark;
+  return Array.isArray(series) ? series.map((s) => fix(s as Record<string, unknown>)) : fix(series as Record<string, unknown>);
 }

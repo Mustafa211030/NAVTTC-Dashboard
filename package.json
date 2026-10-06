@@ -2,9 +2,9 @@
   "name": "navttc-dashboard",
   "version": "1.0.0",
   "private": true,
-  "description": "NAVTTC PMYSDP Batch III - Training Provider Institute analytics dashboard",
+  "description": "NAVTTC Programme Analytics \u2014 multi-programme Training Provider Institute monitoring dashboard",
   "scripts": {
-    "regrade": "node scripts/apply-grading.mjs data/raw/source.xlsx",
+    "regrade": "node scripts/apply-grading.mjs data/programs/pmysdp-b3/source.xlsx",
     "data": "node scripts/build-data.mjs",
     "dev": "npm run data && next dev",
     "build": "npm run data && next build",

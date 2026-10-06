@@ -1,10 +1,10 @@
 "use client";
 import { useState, useMemo } from "react";
 import {
-  useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel,
-  flexRender, type ColumnDef, type SortingState, type VisibilityState,
+  useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, getFilteredRowModel,
+  flexRender, type ColumnDef, type SortingState, type VisibilityState, type FilterFn,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ArrowUp, ArrowDown, Columns3, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Columns3, ChevronLeft, ChevronRight, X, Search } from "lucide-react";
 import { Card, Button, EmptyState } from "../ui";
 
 export interface DataTableProps<T> {
@@ -17,12 +17,20 @@ export interface DataTableProps<T> {
   /** Columns hidden by default; the user can re-enable them from the column manager. */
   initialHidden?: string[];
   storageKey?: string;
+  /** Adds an in-table quick search across every column. */
+  searchable?: boolean;
 }
 
+const anyColumn: FilterFn<unknown> = (row, colId, value) => {
+  const v = row.getValue(colId);
+  return v !== null && v !== undefined && String(v).toLowerCase().includes(String(value).toLowerCase());
+};
+
 export function DataTable<T>({
-  data, columns, onRowClick, pageSize = 25, emptyAction, initialHidden = [], storageKey,
+  data, columns, onRowClick, pageSize = 25, emptyAction, initialHidden = [], storageKey, searchable,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
   const [visibility, setVisibility] = useState<VisibilityState>(() => {
     if (storageKey && typeof window !== "undefined") {
       try {
@@ -44,8 +52,11 @@ export function DataTable<T>({
 
   const table = useReactTable({
     data, columns,
-    state: { sorting, columnVisibility: visibility },
+    state: { sorting, columnVisibility: visibility, globalFilter },
     onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: anyColumn as FilterFn<T>,
+    getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setVis as never,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -62,8 +73,15 @@ export function DataTable<T>({
     <Card className="print-avoid overflow-hidden">
       <div className="no-print relative flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-3 py-2">
         <span className="num text-[11px] text-[var(--text-muted)]">
-          {data.length.toLocaleString()} row{data.length === 1 ? "" : "s"}
+          {table.getFilteredRowModel().rows.length.toLocaleString()}{globalFilter ? ` of ${data.length.toLocaleString()}` : ""} row{data.length === 1 ? "" : "s"}
         </span>
+        {searchable && (
+          <div className="relative">
+            <Search size={11} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input value={globalFilter} onChange={(e) => { setGlobalFilter(e.target.value); table.setPageIndex(0); }} placeholder="Search this table…"
+              aria-label="Search this table" className="w-44 rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 pl-6 pr-2 text-[11px] outline-none focus:border-brand-500" />
+          </div>
+        )}
         <div className="ml-auto flex items-center gap-1.5">
           <button onClick={() => setShowCols((v) => !v)}
             className="flex items-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] hover:bg-[var(--surface-3)]">

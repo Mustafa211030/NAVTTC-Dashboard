@@ -1,38 +1,26 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useFilters } from "../providers/FilterProvider";
-import { meta } from "@/lib/dataset";
+import { Globe2 } from "lucide-react";
+import { useDash } from "../providers/FilterProvider";
 import { ExportMenu } from "./ExportMenu";
 import { Letterhead } from "../reports/Letterhead";
+import { fmtDate } from "@/config";
 
 /**
- * Page title, breadcrumb and export bar. Also emits the print-only report
- * header (§43) carrying NAVTTC branding, module name, filter context,
- * record count and generation timestamp.
+ * Page title, scope eyebrow and export bar, plus the print-only report header
+ * carrying the letterhead, programme, filter context and generation time.
  */
 export function PageHeader({
-  title, description, page, printHeader = true, printLabel,
+  title, description, page, printHeader = true, printLabel, children,
 }: {
   title: string;
   description?: string;
   page: string;
-  /** Set false when the page renders its own purpose-built print document. */
   printHeader?: boolean;
   printLabel?: string;
+  children?: React.ReactNode;
 }) {
-  const { filters, rows, kpis } = useFilters();
-
-  /**
-   * The report timestamp is resolved after mount, never during render.
-   *
-   * Rendering `new Date()` inline makes the server HTML and the client HTML
-   * disagree by however many seconds hydration took, which React reports as a
-   * hydration mismatch. Holding it in state keeps the first client render
-   * identical to the server's, then fills the value in.
-   *
-   * It also refreshes on `beforeprint`, so a printed report is stamped with the
-   * moment it was printed rather than the moment the page was opened.
-   */
+  const { filters, rows, kpis, scope, data } = useDash();
   const [generatedAt, setGeneratedAt] = useState<string>("");
   useEffect(() => {
     const stamp = () => setGeneratedAt(new Date().toLocaleString("en-GB"));
@@ -42,45 +30,53 @@ export function PageHeader({
   }, []);
 
   const chips: string[] = [];
+  if (filters.program.length) chips.push(`Programme: ${filters.program.map((s) => data.programBySlug.get(s)?.short ?? s).join(", ")}`);
   if (filters.region.length) chips.push(`Region: ${filters.region.join(", ")}`);
   if (filters.district.length) chips.push(`District: ${filters.district.join(", ")}`);
   if (filters.package.length) chips.push(`Package: ${filters.package.join(", ")}`);
   if (filters.grade.length) chips.push(`Grade: ${filters.grade.join(", ")}`);
+  if (filters.status.length) chips.push(`Status: ${filters.status.join(", ")}`);
   if (filters.trade.length) chips.push(`${filters.trade.length} trade(s)`);
   if (filters.batch.length) chips.push(`Batch: ${filters.batch.join(", ")}`);
   if (filters.search.trim()) chips.push(`Search: "${filters.search.trim()}"`);
-  if (filters.scoreMin !== null || filters.scoreMax !== null)
-    chips.push(`Score ${filters.scoreMin ?? 0}–${filters.scoreMax ?? 100}`);
+  if (filters.scoreMin !== null || filters.scoreMax !== null) chips.push(`Score ${filters.scoreMin ?? 0}–${filters.scoreMax ?? 100}`);
+  if (filters.flaggedOnly) chips.push("Flagged only");
+
+  const p = scope.program;
+  const color = p?.color ?? "#2563eb";
 
   return (
     <>
-      {/* screen */}
       <div className="no-print mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[.12em]" style={{ color }}>
+            {p ? <span className="h-2 w-2 rounded-full" style={{ background: color }} /> : <Globe2 size={12} />}
+            {p ? p.fullName : `All Programmes · ${scope.programs.length} of ${data.programs.length} in view`}
+          </div>
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
-          {description && <p className="mt-0.5 max-w-2xl text-[13px] text-[var(--text-muted)]">{description}</p>}
+          {description && <p className="mt-0.5 max-w-3xl text-[13px] text-[var(--text-muted)]">{description}</p>}
         </div>
-        <ExportMenu page={page} printLabel={printLabel} />
+        <div className="flex items-center gap-2">
+          {children}
+          <ExportMenu page={page} printLabel={printLabel} />
+        </div>
       </div>
 
-      {/* print report header (§43) */}
-      {printHeader && <div className="print-only mb-4 border-b-2 border-black pb-3">
-        <Letterhead variant="print" />
-        <div className="mt-2 flex items-end justify-between border-t border-black pt-2">
-          <div>
+      {printHeader && (
+        <div className="print-only mb-4 border-b-2 border-black pb-3">
+          <Letterhead variant="print" />
+          <div className="mt-2 flex items-end justify-between border-t border-black pt-2">
             <div className="text-[11pt] font-semibold leading-tight">{title}</div>
+            <div className="text-right text-[8pt] leading-snug">
+              <div><strong>Scope:</strong> {p ? p.name : "All programmes"}</div>
+              {p && <div><strong>Assessment:</strong> {p.period ? `${fmtDate(p.period.from)} – ${fmtDate(p.period.to)}` : fmtDate(p.assessmentDate)}</div>}
+              <div><strong>Generated:</strong> <span suppressHydrationWarning>{generatedAt || "—"}</span></div>
+              <div><strong>Records:</strong> {rows.length.toLocaleString()} · <strong>Institutes:</strong> {kpis.institutes}</div>
+            </div>
           </div>
-          <div className="text-right text-[8pt] leading-snug">
-            <div><strong>Programme:</strong> {meta.program}</div>
-            <div><strong>Assessment:</strong> {meta.assessmentDate}</div>
-            <div><strong>Generated:</strong> <span suppressHydrationWarning>{generatedAt || "—"}</span></div>
-            <div><strong>Records:</strong> {rows.length.toLocaleString()} · <strong>Institutes:</strong> {kpis.institutes}</div>
-          </div>
+          <div className="mt-2 text-[8.5pt]"><strong>Filters applied:</strong> {chips.length ? chips.join("  ·  ") : "None — full dataset"}</div>
         </div>
-        <div className="mt-2 text-[8.5pt]">
-          <strong>Filters applied:</strong> {chips.length ? chips.join("  ·  ") : "None — full dataset"}
-        </div>
-      </div>}
+      )}
     </>
   );
 }

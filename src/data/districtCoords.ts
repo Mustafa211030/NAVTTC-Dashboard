@@ -30,6 +30,7 @@ export const DISTRICT_COORDS: Record<string, [number, number]> = {
   "rajan pur": [70.3302, 29.1041],
   rajanpur: [70.3302, 29.1041],
   vehari: [72.3489, 30.0445],
+  gujranwala: [74.1883, 32.1617],
 
   // Islamabad Capital Territory
   islamabad: [73.0479, 33.6844],
@@ -41,10 +42,13 @@ export const DISTRICT_COORDS: Record<string, [number, number]> = {
   kotli: [73.9020, 33.5180],
   mirpur: [73.7510, 33.1478],
   muzaffarabad: [73.4711, 34.3700],
+  neelum: [73.9064, 34.5856],
   rawalakot: [73.7604, 33.8578],
 
   // Gilgit-Baltistan
   astore: [74.8600, 35.3670],
+  diamer: [74.0990, 35.4208],
+  nagar: [74.5830, 36.2500],
   ghanche: [76.3000, 35.3000],
   ghizer: [73.4500, 36.1700],
   gilgit: [74.3080, 35.9200],

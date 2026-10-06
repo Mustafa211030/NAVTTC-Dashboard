@@ -1,3 +1,5 @@
+> **Historical document.** Written for the original single-programme build (PMYSDP Batch III only). The dashboard now covers six programmes — see README.md and `scripts/programs.config.mjs` for the current data model, rubrics and attendance rules.
+
 # NAVTTC PMYSDP B3 — Pre-Build Audit Findings
 
 **Audit date:** 2026-09-08

@@ -1,13 +1,13 @@
 "use client";
-import type { AssessmentRow, FilterState } from "../types";
-import { meta } from "./dataset";
+import type { AssessmentRow, FilterState, Program } from "../types";
 
-/** Builds the filename stem used by every export, e.g. NAVTTC_Geography_Punjab_2026-09-08 */
-export function reportName(page: string, f?: FilterState): string {
-  const bits = ["NAVTTC", page.replace(/\s+/g, "_")];
+/** Filename stem, e.g. NAVTTC_PMYSDP-B-II_Geography_PUNJAB_2026-10-06 */
+export function reportName(page: string, scopeLabel: string, f?: FilterState): string {
+  const bits = ["NAVTTC", scopeLabel.replace(/\s+/g, "-"), page.replace(/\s+/g, "_")];
   if (f) {
+    if (f.program.length) bits.push(f.program.join("-"));
     if (f.region.length) bits.push(f.region.join("-"));
-    if (f.district.length) bits.push(f.district.join("-"));
+    if (f.district.length) bits.push(f.district.slice(0, 3).join("-"));
     if (f.grade.length) bits.push(f.grade.join("-"));
   }
   bits.push(new Date().toISOString().slice(0, 10));
@@ -19,7 +19,7 @@ function download(blob: Blob, filename: string) {
   const a = document.createElement("a");
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const esc = (v: unknown): string => {
@@ -28,80 +28,98 @@ const esc = (v: unknown): string => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-/** Flattens an assessment row into the export shape — one column per Excel field. */
-export function flattenRow(r: AssessmentRow): Record<string, string | number | null> {
+export function downloadCsv(matrix: (string | number | null | undefined)[][], name: string) {
+  const body = matrix.map((r) => r.map(esc).join(",")).join("\r\n");
+  download(new Blob(["﻿" + body], { type: "text/csv;charset=utf-8;" }), `${name}.csv`);
+}
+
+/** Flattens an assessment row into the export shape. Components are labelled by the row's own rubric. */
+export function flattenRow(r: AssessmentRow, programs: Map<string, Program>): Record<string, string | number | null> {
+  const p = programs.get(r.p);
   const out: Record<string, string | number | null> = {
+    Programme: p?.name ?? r.p,
     "Excel Row": r.excelRow,
     Package: r.package,
-    "Program Name": r.programName,
     Region: r.region,
     District: r.district,
+    Division: r.division,
+    Tehsil: r.tehsil,
     "Institute ID": r.instituteId,
     "Institute Name": r.instituteName,
     "Trade Name": r.tradeName,
-    "Trade Name (as entered)": r.tradeNameRaw.trim(),
+    "Trade Name (as entered)": r.tradeNameRaw,
     "Trade Code": r.tradeCode,
-    "Institute Trade Code": r.instituteTradeCode,
+    "Trade Category": r.tradeCategory,
+    "Trade Sector": r.tradeSector,
+    "Duration (months)": r.durationMonths,
+    "Date of Visit": r.visitDate,
     Batch: r.batch,
-    "Batch (as entered)": r.batchRaw,
     "Approved Capacity": r.approvedCapacity,
-    "Registered on Biometric": r.biometricRegistered,
+    [p?.enrolledLabel ?? "Enrolled"]: r.enrolled,
     "Dropped Out": r.droppedOut,
     Present: r.present,
     Absent: r.absent,
     "CNIC Verified": r.cnicVerified,
-    "Attendance % (CNIC Verified / Approved Capacity)": r.attendanceRate,
-    "Presence % (Present / Registered)": r.presenceRate,
+    [`Attendance % (${p?.attendanceRule.label ?? "programme rule"})`]: r.attendanceRate,
+    "Presence % (Present / Enrolled)": r.presenceRate,
+    "CNIC Verified % of Capacity": r.verificationRate,
     "Dropout Rate": r.dropoutRate,
-    "Capacity Utilization": r.utilizationRate,
-    "Attendance % (col R, as reported in workbook)": r.verificationRateReported,
+    "Capacity Utilisation": r.utilizationRate,
+    "Attendance % (as stored in workbook)": r.attendanceReported,
   };
-  for (const [k, v] of Object.entries(r.components)) out[`Score: ${k}`] = v;
+  for (const c of p?.rubric.components ?? []) out[`Score: ${c.label} (/${c.max})`] = r.scored ? r.components[c.key] ?? null : null;
   out["Trade Score (recomputed)"] = r.tradeScore;
-  out["Trade Score (as stored in Excel)"] = r.tradeScoreStored;
+  out["Trade Score (as stored)"] = r.tradeScoreStored;
+  out["Recommended for Release"] = r.release;
+  for (const [k, v] of Object.entries(r.extra ?? {})) out[`Workbook: ${k}`] = v;
   return out;
 }
 
-export function exportCsv(rows: AssessmentRow[], name: string) {
-  if (!rows.length) return;
-  const flat = rows.map(flattenRow);
-  const headers = Object.keys(flat[0]);
-  const body = [headers.map(esc).join(","), ...flat.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\r\n");
-  // BOM so Excel opens UTF-8 correctly
-  download(new Blob(["\uFEFF" + body], { type: "text/csv;charset=utf-8;" }), `${name}.csv`);
+function matrixOf(rows: AssessmentRow[], programs: Map<string, Program>) {
+  const flat = rows.map((r) => flattenRow(r, programs));
+  const headers: string[] = [];
+  const seen = new Set<string>();
+  for (const f of flat) for (const k of Object.keys(f)) if (!seen.has(k)) { seen.add(k); headers.push(k); }
+  return { headers, flat };
 }
 
-export function exportJson(rows: AssessmentRow[], name: string, filters: FilterState) {
+export function exportCsv(rows: AssessmentRow[], programs: Map<string, Program>, name: string) {
+  if (!rows.length) return;
+  const { headers, flat } = matrixOf(rows, programs);
+  downloadCsv([headers, ...flat.map((r) => headers.map((h) => r[h] ?? null))], name);
+}
+
+export function exportJson(rows: AssessmentRow[], programs: Map<string, Program>, name: string, filters: FilterState, scope: string) {
   const payload = {
     generatedAt: new Date().toISOString(),
-    source: meta.sourceFile,
+    scope,
     filters,
     recordCount: rows.length,
-    records: rows.map(flattenRow),
+    records: rows.map((r) => flattenRow(r, programs)),
   };
   download(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }), `${name}.json`);
 }
 
-/**
- * Excel export. SheetJS is loaded on demand so the ~400 KB writer never
- * reaches users who only browse the dashboard.
- */
-export async function exportXlsx(rows: AssessmentRow[], name: string) {
+/** Excel export. ExcelJS is loaded on demand. One sheet per programme plus an "All" sheet. */
+export async function exportXlsx(rows: AssessmentRow[], programs: Map<string, Program>, name: string) {
   if (!rows.length) return;
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "NAVTTC Analytics";
   wb.created = new Date();
-  const ws = wb.addWorksheet("Filtered Data");
-  const flat = rows.map(flattenRow);
-  const headers = Object.keys(flat[0]);
-  ws.columns = headers.map((h) => ({ header: h, key: h, width: Math.min(Math.max(h.length + 2, 12), 42) }));
-  flat.forEach((r) => ws.addRow(r));
-  ws.getRow(1).font = { bold: true };
-  ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
-  ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  ws.views = [{ state: "frozen", ySplit: 1 }];
-  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+  const add = (title: string, subset: AssessmentRow[]) => {
+    const ws = wb.addWorksheet(title.slice(0, 31).replace(/[\\/?*[\]:]/g, "-"));
+    const { headers, flat } = matrixOf(subset, programs);
+    ws.columns = headers.map((h) => ({ header: h, key: h, width: Math.min(Math.max(h.length + 2, 12), 42) }));
+    flat.forEach((r) => ws.addRow(r));
+    ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
+    ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+  };
+  const slugs = [...new Set(rows.map((r) => r.p))];
+  if (slugs.length > 1) add("All programmes", rows);
+  for (const s of slugs) add(programs.get(s)?.short ?? s, rows.filter((r) => r.p === s));
   const buf = await wb.xlsx.writeBuffer();
   download(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${name}.xlsx`);
 }

@@ -1,3 +1,5 @@
+> **Historical document.** Written for the original single-programme build (PMYSDP Batch III only). The dashboard now covers six programmes — see README.md and `scripts/programs.config.mjs` for the current data model, rubrics and attendance rules.
+
 # DASHBOARD_INVENTORY.md
 
 Mandated by master prompt §63 and §64. This is the complete inventory of the existing `index.html`, so the rebuild can be verified against it rather than guessed at.

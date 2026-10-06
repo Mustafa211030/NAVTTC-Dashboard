@@ -1,3 +1,5 @@
+> **Historical document.** Written for the original single-programme build (PMYSDP Batch III only). The dashboard now covers six programmes — see README.md and `scripts/programs.config.mjs` for the current data model, rubrics and attendance rules.
+
 # DATA_MAPPING.md
 
 Mandated by master prompt §62. Source of truth: `NAVTTC_-_PMYSDP_B3_-_184_TPI_-_24052026.xlsx`, sheet `Combined Sheet`, range A1:AK699 — 1 header row, 698 data rows, 37 columns.

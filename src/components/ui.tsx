@@ -78,7 +78,7 @@ export function MultiSelect({
   label, options, selected, onChange, width = "w-56",
 }: {
   label: string;
-  options: { value: string; label: string; count?: number }[];
+  options: { value: string; label: string; count?: number; color?: string }[];
   selected: string[];
   onChange: (v: string[]) => void;
   width?: string;
@@ -129,7 +129,8 @@ export function MultiSelect({
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-[var(--surface-3)]">
                 <input type="checkbox" className="accent-brand-600" checked={selected.includes(o.value)}
                   onChange={() => toggle(o.value)} />
-                <span className="flex-1 truncate">{o.label}</span>
+                {o.color && <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: o.color }} />}
+                <span className={`flex-1 truncate ${o.count === 0 ? "opacity-45" : ""}`}>{o.label}</span>
                 {o.count !== undefined && <span className="num text-[10px] text-[var(--text-muted)]">{o.count}</span>}
               </label>
             ))}
@@ -147,9 +148,10 @@ export function MultiSelect({
   );
 }
 
-export function Chip({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+export function Chip({ children, onRemove, color }: { children: React.ReactNode; onRemove: () => void; color?: string }) {
   return (
-    <span className="rise inline-flex items-center gap-1 rounded-full border border-brand-100 bg-brand-50 py-0.5 pl-2.5 pr-1 text-[11px] font-medium text-brand-700 dark:border-brand-700 dark:bg-brand-700/20 dark:text-brand-100">
+    <span className="rise inline-flex items-center gap-1 rounded-full border border-brand-100 bg-brand-50 py-0.5 pl-2 pr-1 text-[11px] font-medium text-brand-700 dark:border-brand-700 dark:bg-brand-700/20 dark:text-brand-100">
+      {color && <span className="h-2 w-2 rounded-full" style={{ background: color }} />}
       {children}
       <button onClick={onRemove} aria-label="Remove filter" className="rounded-full p-0.5 hover:bg-brand-600/15">
         <X size={11} strokeWidth={2.6} />
@@ -164,5 +166,72 @@ export function ProgressBar({ value, max, color }: { value: number; max: number;
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-3)]">
       <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: color }} />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Compact controls used inside chart headers (per-chart filters).
+ * ------------------------------------------------------------------ */
+
+/** Segmented control. */
+export function Seg<T extends string | number>({
+  value, onChange, options, label,
+}: { value: T; onChange: (v: T) => void; options: { value: T; label: string; title?: string }[]; label?: string }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="inline-flex shrink-0 rounded-md border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+      {options.map((o) => (
+        <button key={String(o.value)} role="radio" aria-checked={value === o.value} title={o.title ?? o.label}
+          onClick={() => onChange(o.value)}
+          className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10.5px] font-medium transition-colors ${
+            value === o.value ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Tiny native select, styled to sit in a chart header. */
+export function MiniSelect<T extends string | number>({
+  value, onChange, options, label,
+}: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; label: string }) {
+  return (
+    <label className="inline-flex shrink-0 items-center gap-1 text-[10.5px] text-[var(--text-muted)]">
+      <span className="sr-only sm:not-sr-only">{label}</span>
+      <select value={String(value)} aria-label={label}
+        onChange={(e) => {
+          const o = options.find((x) => String(x.value) === e.target.value);
+          if (o) onChange(o.value);
+        }}
+        className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-1.5 py-[3px] text-[10.5px] font-medium text-[var(--text)] outline-none focus:border-brand-500">
+        {options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+/** Horizontal stacked share bar (e.g. grade mix) with an accessible title. */
+export function StackBar({ parts, height = 8 }: { parts: { label: string; value: number; color: string }[]; height?: number }) {
+  const total = parts.reduce((s, p) => s + p.value, 0) || 1;
+  return (
+    <div className="flex w-full overflow-hidden rounded-full bg-[var(--surface-3)]" style={{ height }}
+      title={parts.map((p) => `${p.label}: ${p.value}`).join(" · ")}>
+      {parts.filter((p) => p.value > 0).map((p) => (
+        <div key={p.label} style={{ width: `${(p.value / total) * 100}%`, background: p.color }} />
+      ))}
+    </div>
+  );
+}
+
+/** Small "delta vs reference" pill. */
+export function Delta({ value, digits = 1, suffix = "", invert = false }: { value: number | null; digits?: number; suffix?: string; invert?: boolean }) {
+  if (value === null || Number.isNaN(value)) return <span className="text-[10px] text-[var(--text-muted)]">—</span>;
+  const good = invert ? value < 0 : value > 0;
+  const zero = Math.abs(value) < 10 ** -digits / 2;
+  return (
+    <span className={`num inline-flex items-center rounded px-1 text-[10px] font-semibold ${
+      zero ? "bg-[var(--surface-3)] text-[var(--text-muted)]" : good ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300"}`}>
+      {value > 0 ? "▲" : value < 0 ? "▼" : "•"} {Math.abs(value).toFixed(digits)}{suffix}
+    </span>
   );
 }

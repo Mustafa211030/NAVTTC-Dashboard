@@ -1,67 +1,14 @@
-export interface ComponentDef { key: string; max: number; label: string }
-export interface CategoryDef { key: string; label: string; max: number; members: string[] }
+/* ------------------------------------------------------------------ *
+ * Portfolio data model — the shape of public/data/portfolio.json,
+ * produced by scripts/build-data.mjs. One file, every programme.
+ * ------------------------------------------------------------------ */
 
-export interface AssessmentRow {
-  id: string;
-  excelRow: number;
-  package: string | null;
-  programName: string | null;
-  region: string;
-  district: string;
-  instituteId: number;
-  instituteName: string;
-  tradeName: string;
-  tradeNameRaw: string;
-  tradeCode: number;
-  instituteTradeCode: number | null;
-  batch: number | null;
-  batchRaw: string | null;
-  approvedCapacity: number;
-  biometricRegistered: number;
-  droppedOut: number;
-  present: number;
-  absent: number;
-  cnicVerified: number;
-  verificationRateReported: number | null;
-  /** CNIC Verified / Approved Capacity — the official attendance basis. */
-  attendanceRate: number | null;
-  /** Present / Registered — physical presence, reported separately. */
-  presenceRate: number | null;
-  dropoutRate: number | null;
-  utilizationRate: number | null;
-  components: Record<string, number>;
-  categoryScores: Record<string, number>;
-  tradeScore: number;
-  tradeScoreStored: number | null;
-}
+export type CategoryKey = "biometricAttendance" | "infrastructure" | "trainer" | "delivery" | "industry" | "feedback";
 
-export interface Institute {
-  instituteId: number;
-  instituteName: string;
-  region: string;
-  district: string;
-  package: string | null;
-  assessments: number;
-  trades: string[];
-  tradeCodes: number[];
-  approvedCapacity: number;
-  biometricRegistered: number;
-  droppedOut: number;
-  present: number;
-  absent: number;
-  cnicVerified: number;
-  attendanceRate: number | null;
-  presenceRate: number | null;
-  dropoutRate: number | null;
-  utilizationRate: number | null;
-  score: number;
-  scoreStored: number | null;
-  gradeReported: string | null;
-  assessorNote: string | null;
-  categoryScores: Record<string, number>;
-  components: Record<string, number>;
-  rank: number;
-}
+export interface CategoryDef { key: CategoryKey; label: string; short: string }
+
+export interface RubricComponent { key: string; label: string; max: number; cat: CategoryKey; column: number }
+export interface RubricCategory { key: CategoryKey; label: string; short: string; max: number; members: string[] }
 
 export interface QualityIssue {
   severity: "high" | "medium" | "low";
@@ -70,41 +17,173 @@ export interface QualityIssue {
   row: number | null;
   detail: string | null;
 }
-
 export interface Repair { row: number; field: string; from: string; to: number; reason: string }
+export interface ChangeLogEntry {
+  row: number | string | null; institute: string | null; trade: string | null; field: string | null;
+  from: string | null; to: string | null; reason: string | null;
+}
 
-export interface Dataset {
+export interface ProgramQuality {
+  totals: { rows: number; institutes: number; cells: number; filledCells: number; completeness: number; issues: number; repairs: number; changeLog: number };
+  bySeverity: Record<string, number>;
+  byCode: Record<string, number>;
+  repairs: Repair[];
+  issues: QualityIssue[];
+  changeLog: ChangeLogEntry[];
+}
+
+export interface Program {
+  slug: string;
+  order: number;
+  family: string;
+  name: string;
+  short: string;
+  code: string;
+  /** 2–3 character mark used in the sidebar and switcher */
+  badge: string;
+  fullName: string;
+  color: string;
+  rubric: { key: string; label: string; components: RubricComponent[]; categories: RubricCategory[] };
+  attendanceRule: { key: string; num: string; den: string; label: string };
+  enrolledLabel: string;
+  assessmentDate: string | null;
+  period: { from: string; to: string } | null;
+  hasVisitDates: boolean;
+  sourceFile: string;
+  sheet: string;
+  columnCount: number;
+  headers: string[];
+  extras: string[];
+  notes: string[];
+  rowCount: number;
+  instituteCount: number;
+  quality: ProgramQuality;
+}
+
+export interface AssessmentRow {
+  id: string;
+  /** programme slug */
+  p: string;
+  excelRow: number;
+  package: string | null;
+  programName: string | null;
+  region: string;
+  district: string;
+  division: string | null;
+  tehsil: string | null;
+  instituteId: number | null;
+  /** unique within the programme */
+  instituteKey: string;
+  /** links the same institute across programmes */
+  globalKey: string;
+  instituteName: string;
+  tradeNameRaw: string;
+  tradeName: string;
+  tradeCode: number | null;
+  /** unique within the programme */
+  tradeKey: string;
+  /** normalised name — links the same trade across programmes */
+  tradeNorm: string;
+  tradeCategory: string | null;
+  tradeSector: string | null;
+  durationMonths: number | null;
+  visitDate: string | null;
+  release: string | null;
+  batch: number | null;
+  batchRaw: string | null;
+  approvedCapacity: number;
+  enrolled: number;
+  droppedOut: number;
+  present: number;
+  absent: number;
+  cnicVerified: number;
+  /** attendance numerator/denominator under the programme's own rule */
+  attNum: number;
+  attDen: number;
+  attendanceRate: number | null;
+  presenceRate: number | null;
+  verificationRate: number | null;
+  dropoutRate: number | null;
+  utilizationRate: number | null;
+  attendanceReported: number | null;
+  scored: boolean;
+  components: Record<string, number>;
+  /** 0–1 share of each shared category's maximum under this programme's rubric */
+  categoryPct: Record<CategoryKey, number | null>;
+  tradeScore: number | null;
+  tradeScoreStored: number | null;
+  extra: Record<string, string | number>;
+}
+
+export interface Institute {
+  p: string;
+  instituteKey: string;
+  globalKey: string;
+  instituteId: number | null;
+  instituteName: string;
+  region: string;
+  district: string;
+  division: string | null;
+  package: string | null;
+  assessments: number;
+  trades: string[];
+  approvedCapacity: number;
+  enrolled: number;
+  droppedOut: number;
+  present: number;
+  absent: number;
+  cnicVerified: number;
+  attNum: number;
+  attDen: number;
+  attendanceRate: number | null;
+  presenceRate: number | null;
+  verificationRate: number | null;
+  dropoutRate: number | null;
+  utilizationRate: number | null;
+  score: number | null;
+  scoreStored: number | null;
+  grade: string;
+  gradeReported: string | null;
+  gradeOverride: string | null;
+  assessorNote: string | null;
+  status: "Active" | "Fake" | "Critical" | "Non-Functional" | "Closed";
+  flagged: boolean;
+  categoryScores: Record<CategoryKey, number | null>;
+  categoryPct: Record<CategoryKey, number | null>;
+  components: Record<string, number | null>;
+  visitDate: string | null;
+  rank: number;
+}
+
+export interface Portfolio {
   meta: {
-    generatedAt: string; sourceFile: string; sheet: string; assessmentDate: string;
-    program: string; rowCount: number; instituteCount: number; columnCount: number;
-    headers: string[]; hasTimeDimension: boolean; hasDemographics: boolean;
+    generatedAt: string;
+    programCount: number;
+    rowCount: number;
+    instituteCount: number;
+    uniqueInstitutes: number;
+    gradeBands: { label: string; min: number }[];
   };
-  components: ComponentDef[];
   categories: CategoryDef[];
-  dimensions: {
-    regions: string[]; districts: string[]; packages: string[]; batches: number[];
-    grades: string[]; trades: { code: number; name: string }[];
-    regionDistricts: Record<string, string[]>;
-  };
+  programs: Program[];
+  tradeNames: Record<string, string>;
+  crossProgramIssues: { id: number; names: string[] }[];
   rows: AssessmentRow[];
   institutes: Institute[];
-  quality: {
-    totals: { rows: number; institutes: number; cells: number; filledCells: number; completeness: number; issues: number; repairs: number };
-    bySeverity: Record<string, number>;
-    byCode: Record<string, number>;
-    repairs: Repair[];
-    issues: QualityIssue[];
-  };
 }
 
 export interface FilterState {
+  program: string[];
   region: string[];
   district: string[];
   package: string[];
-  trade: number[];
+  /** tradeNorm values — the same key works across programmes */
+  trade: string[];
   batch: number[];
   grade: string[];
+  status: string[];
   search: string;
   scoreMin: number | null;
   scoreMax: number | null;
+  flaggedOnly: boolean;
 }
