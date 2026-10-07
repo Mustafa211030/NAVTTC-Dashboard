@@ -5,6 +5,7 @@ import type { AssessmentRow, FilterState, Program } from "../types";
 export function reportName(page: string, scopeLabel: string, f?: FilterState): string {
   const bits = ["NAVTTC", scopeLabel.replace(/\s+/g, "-"), page.replace(/\s+/g, "_")];
   if (f) {
+    if (f.institute.length) bits.push(f.institute.length === 1 ? f.institute[0] : `${f.institute.length}-institutes`);
     if (f.program.length) bits.push(f.program.join("-"));
     if (f.region.length) bits.push(f.region.join("-"));
     if (f.district.length) bits.push(f.district.slice(0, 3).join("-"));

@@ -31,7 +31,12 @@ npm run dev          # http://localhost:3000
 | `npm run build` / `npm start` | Rebuild data, production build, serve |
 | `npm test` | 31 regression tests over the generated portfolio |
 
-Requires Node 20+. The AI assistant needs `GROQ_API_KEY` (and optionally `GROQ_MODEL`) in `.env.local`.
+Requires Node 20+.
+
+**Low-memory machines.** `npm run dev` (Turbopack) needs about 1.3–1.7 GB of free RAM
+and crashes with `memory allocation ... failed` when it can't get it. Use
+`npm run preview` instead: it builds once and serves the production app, which runs in
+about 150 MB. `npm run dev:webpack` is the alternative dev server if Turbopack misbehaves. The AI assistant needs `GROQ_API_KEY` (and optionally `GROQ_MODEL`) in `.env.local`.
 
 ---
 
@@ -54,6 +59,31 @@ the URL is in. The **scope switcher** in the header (and the sidebar) moves
 between All Programmes and any programme while keeping you on the same module
 and carrying your filters across.
 
+### Institute filter and focus mode
+
+The first control in the filter bar finds any institute by **name or Institute ID**
+(type `125`, `ID 125` or part of the name). There is one entry per real institute,
+covering every programme it was assessed in (460 institutes); CBI B-II institutes,
+which have no IDs, are marked *name-matched*, and IDs whose name differs between
+programmes carry a *verify* warning. The selection lives in the URL (`?inst=id-125`).
+
+- **One institute → focus mode.** Every KPI, chart, table and export narrows to that
+  institute's records, and a spotlight panel shows its journey across programmes
+  (score, grade, change, rank) and its latest standing.
+- **Up to five → comparison** strip, side by side across programmes.
+- **Standings are fixed** — always ranked against the whole programme, never the
+  filtered view (ties shown as `=#1`).
+- If another filter hides the institute, a notice offers to clear the other filters.
+- The crosshair button beside institute names (rankings, tables, flagged list,
+  profiles) focuses on that institute; Shift-click adds it to the comparison.
+  `Ctrl/⌘ K` → *Focus on institute* does the same.
+- **Full profile** (`/institutions/<key>`): standings with percentile, district and
+  region rank and gaps to programme mean / district median / top-10% line; journey;
+  enrolment across programmes; every measure with change; trades × programmes matrix
+  (new / dropped / repeated trades); category gaps; strongest and weakest criteria;
+  monitor remarks, instructors and data-quality issues on its rows; CSV / Excel of
+  all its records.
+
 ### Filters, at three levels
 
 1. **Global filter bar** — Programme (portfolio scope), Region → District (cascading),
@@ -70,6 +100,16 @@ and carrying your filters across.
 Every chart shows its values on the marks, and offers fullscreen, PNG download,
 "view data" and CSV of exactly what is plotted. `Ctrl/⌘ K` opens a command palette
 to jump to any programme, page or institute, or to filter by district or trade.
+
+### Interface
+
+- **Floating glass sidebar and header.**
+  - The sidebar collapses to an icon rail (`Ctrl+\`).
+  - The header holds the scope switcher, breadcrumbs, a `Ctrl+K` palette, the data-status popover, the **alerts centre** and the theme toggle.
+- **Alerts centre** (bell icon). Lists fake, critical, non-functional and closed institutes, institutes whose score dropped 10+ points since their previous programme, and high-severity workbook findings. Read state is remembered per browser.
+- **KPI cards** show a sparkline across PMYSDP B-I → B-III and a change pill against the previous batch, both under the current filters.
+- **Settings** (`/settings`): theme (light / dark / system), accent colour, density, motion, chart value labels and the start-up view.
+- **Design tokens, motion rules and performance notes** are in `docs/UI_ARCHITECTURE.md`.
 
 ---
 
@@ -148,7 +188,7 @@ src/
     chat-tools.ts                   ← programme-aware AI assistant tools
 ```
 
-Stack: Next.js 16 · React 19 · TypeScript strict · Tailwind 4 · ECharts 6 · TanStack Table 8 · ExcelJS.
+Stack: Next.js 16 · React 19 · TypeScript strict · Tailwind 4 · ECharts 6 · Motion 12 (lazy-loaded) · TanStack Table 8 · ExcelJS.
 
 ## Deploying
 

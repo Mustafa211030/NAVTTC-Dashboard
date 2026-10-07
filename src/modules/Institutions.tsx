@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { GradeMix, ScatterCard } from "@/components/charts/blocks";
 import { FlaggedPanel } from "@/components/dashboard/widgets";
+import { FocusButton } from "@/components/filters/InstitutePicker";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge, ProgressBar, Seg, MiniSelect } from "@/components/ui";
 import type { Institute } from "@/types";
@@ -38,7 +39,7 @@ export function InstitutionsModule() {
       cell: (c) => { const p = data.programBySlug.get(c.row.original.p)!; return <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-semibold" style={{ color: p.color }}><span className="h-2 w-2 rounded-full" style={{ background: p.color }} />{p.short}</span>; },
     });
     cols.push(
-      { id: "name", header: "Institute", accessorKey: "instituteName", cell: (c) => <span className="block max-w-[280px] truncate font-medium">{c.getValue() as string}</span> },
+      { id: "name", header: "Institute", accessorKey: "instituteName", cell: (c) => <span className="flex max-w-[300px] items-center gap-1"><FocusButton globalKey={c.row.original.globalKey} /><span className="truncate font-medium">{c.getValue() as string}</span></span> },
       { id: "id", header: "ID", accessorKey: "instituteId", cell: (c) => <span className="num text-[var(--text-muted)]">{(c.getValue() as number | null) ?? "—"}</span> },
       { id: "district", header: "District", accessorKey: "district" },
       { id: "region", header: "Region", accessorKey: "region" },

@@ -1,14 +1,14 @@
 import type { AssessmentRow, FilterState } from "../types";
 
 export const EMPTY_FILTERS: FilterState = {
-  program: [], region: [], district: [], package: [], trade: [], batch: [], grade: [], status: [],
+  institute: [], program: [], region: [], district: [], package: [], trade: [], batch: [], grade: [], status: [],
   search: "", scoreMin: null, scoreMax: null, flaggedOnly: false,
 };
 
 export const isActive = (f: FilterState): boolean => countActive(f) > 0;
 
 export function countActive(f: FilterState): number {
-  return f.program.length + f.region.length + f.district.length + f.package.length + f.trade.length +
+  return f.institute.length + f.program.length + f.region.length + f.district.length + f.package.length + f.trade.length +
     f.batch.length + f.grade.length + f.status.length + (f.search.trim() ? 1 : 0) +
     (f.scoreMin !== null || f.scoreMax !== null ? 1 : 0) + (f.flaggedOnly ? 1 : 0);
 }
@@ -28,6 +28,7 @@ export function applyFilters(
   const q = f.search.trim().toLowerCase();
   const on = (k: keyof FilterState) => !ignore.includes(k);
   return all.filter((r) => {
+    if (on("institute") && f.institute.length && !f.institute.includes(r.globalKey)) return false;
     if (on("program") && f.program.length && !f.program.includes(r.p)) return false;
     if (on("region") && f.region.length && !f.region.includes(r.region)) return false;
     if (on("district") && f.district.length && !f.district.includes(r.district)) return false;
@@ -55,6 +56,7 @@ export function applyFilters(
 export function filtersToParams(f: FilterState): URLSearchParams {
   const p = new URLSearchParams();
   const list = (k: string, v: (string | number)[]) => { if (v.length) p.set(k, v.join("~")); };
+  list("inst", f.institute);
   list("prog", f.program);
   list("region", f.region);
   list("district", f.district);
@@ -75,7 +77,7 @@ export function paramsToFilters(p: URLSearchParams): FilterState {
   const nums = (k: string) => list(k).map(Number).filter((n) => !Number.isNaN(n));
   const num = (k: string) => (p.get(k) !== null && p.get(k) !== "" ? Number(p.get(k)) : null);
   return {
-    program: list("prog"), region: list("region"), district: list("district"), package: list("package"),
+    institute: list("inst").slice(0, 5), program: list("prog"), region: list("region"), district: list("district"), package: list("package"),
     trade: list("trade"), batch: nums("batch"), grade: list("grade"), status: list("status"),
     search: p.get("q") ?? "", scoreMin: num("smin"), scoreMax: num("smax"), flaggedOnly: p.get("flagged") === "1",
   };

@@ -30,6 +30,7 @@ export function PageHeader({
   }, []);
 
   const chips: string[] = [];
+  if (filters.institute.length) chips.push(`Institute: ${filters.institute.map((k) => { const r = data.institutesByGlobal.get(k); return r ? `${r[r.length - 1].instituteName} (${r[0].instituteId !== null ? `ID ${r[0].instituteId}` : k})` : k; }).join("; ")}`);
   if (filters.program.length) chips.push(`Programme: ${filters.program.map((s) => data.programBySlug.get(s)?.short ?? s).join(", ")}`);
   if (filters.region.length) chips.push(`Region: ${filters.region.join(", ")}`);
   if (filters.district.length) chips.push(`District: ${filters.district.join(", ")}`);
@@ -43,20 +44,20 @@ export function PageHeader({
   if (filters.flaggedOnly) chips.push("Flagged only");
 
   const p = scope.program;
-  const color = p?.color ?? "#2563eb";
+  const color = p?.color ?? "var(--brand-500)";
 
   return (
     <>
-      <div className="no-print mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="no-print mb-5 flex flex-wrap items-end justify-between gap-3 px-1">
         <div className="min-w-0">
-          <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[.12em]" style={{ color }}>
-            {p ? <span className="h-2 w-2 rounded-full" style={{ background: color }} /> : <Globe2 size={12} />}
+          <div className="t-eyebrow mb-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1" style={{ color, background: `color-mix(in oklab, ${color} 10%, transparent)` }}>
+            {p ? <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} /> : <Globe2 size={11} />}
             {p ? p.fullName : `All Programmes · ${scope.programs.length} of ${data.programs.length} in view`}
           </div>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
-          {description && <p className="mt-0.5 max-w-3xl text-[13px] text-[var(--text-muted)]">{description}</p>}
+          <h1 className="t-title sm:text-[26px]">{title}</h1>
+          {description && <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-[var(--text-muted)]">{description}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {children}
           <ExportMenu page={page} printLabel={printLabel} />
         </div>

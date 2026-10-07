@@ -12,7 +12,7 @@ import { gradeOf, TIER_RUBRIC } from "../config";
 let INDEX: PortfolioIndex | null = null;
 function data(): PortfolioIndex {
   if (!INDEX) {
-    const raw = JSON.parse(readFileSync(join(process.cwd(), "public", "data", "portfolio.json"), "utf8")) as Portfolio;
+    const raw = JSON.parse(readFileSync(join(/* turbopackIgnore: true */ process.cwd(), "public", "data", "portfolio.json"), "utf8")) as Portfolio;
     INDEX = indexPortfolio(raw);
   }
   return INDEX;
@@ -20,6 +20,7 @@ function data(): PortfolioIndex {
 
 /* ---------- filters arriving from the browser are untrusted: validate ---------- */
 export const filtersSchema = z.object({
+  institute: z.array(z.string()).max(5).default([]),
   program: z.array(z.string()).max(20).default([]),
   region: z.array(z.string()).max(20).default([]),
   district: z.array(z.string()).max(60).default([]),
@@ -41,6 +42,7 @@ const num = (v: number | null | undefined, d = 2) => (v == null ? null : Math.ro
 export function describeFilters(f: FilterState): string {
   const d = data();
   const p: string[] = [];
+  if (f.institute.length) p.push(`institute: ${f.institute.map((k) => { const r = d.institutesByGlobal.get(k); return r ? `${r[r.length - 1].instituteName} (${k})` : k; }).join(", ")}`);
   if (f.program.length) p.push(`programme: ${f.program.map((s) => d.programBySlug.get(s)?.short ?? s).join(", ")}`);
   if (f.region.length) p.push(`region: ${f.region.join(", ")}`);
   if (f.district.length) p.push(`district: ${f.district.join(", ")}`);

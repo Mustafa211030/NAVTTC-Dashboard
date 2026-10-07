@@ -79,12 +79,12 @@ export function DataTable<T>({
           <div className="relative">
             <Search size={11} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input value={globalFilter} onChange={(e) => { setGlobalFilter(e.target.value); table.setPageIndex(0); }} placeholder="Search this table…"
-              aria-label="Search this table" className="w-44 rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 pl-6 pr-2 text-[11px] outline-none focus:border-brand-500" />
+              aria-label="Search this table" className="h-7 w-48 rounded-md border border-[var(--border)] bg-[var(--surface)] pl-6 pr-2 text-[11px] outline-none transition-colors hover:border-[var(--border-strong)] focus:border-brand-500 focus:ring-2 focus:ring-[color-mix(in_oklab,var(--brand-500)_22%,transparent)]" />
           </div>
         )}
         <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={() => setShowCols((v) => !v)}
-            className="flex items-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] hover:bg-[var(--surface-3)]">
+          <button type="button" onClick={() => setShowCols((v) => !v)} aria-expanded={showCols}
+            className={`ctl flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px] ${showCols ? "border-brand-500 bg-[var(--surface-3)]" : "border-[var(--border)] hover:bg-[var(--surface-3)]"}`}>
             <Columns3 size={12} /> Columns{hiddenCount ? ` (${hiddenCount} hidden)` : ""}
           </button>
           <select value={table.getState().pagination.pageSize} aria-label="Rows per page"
@@ -95,7 +95,7 @@ export function DataTable<T>({
         </div>
 
         {showCols && (
-          <div className="absolute right-3 top-full z-40 mt-1 max-h-72 w-64 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 shadow-xl">
+          <div className="pop rise absolute right-3 top-full z-40 mt-1 max-h-72 w-64 overflow-y-auto p-1">
             <div className="flex items-center justify-between px-2 py-1.5">
               <span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Visible columns</span>
               <button onClick={() => setShowCols(false)} aria-label="Close"><X size={12} /></button>
@@ -113,20 +113,21 @@ export function DataTable<T>({
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs">
-          <thead className="sticky top-0 z-10 bg-[var(--surface-2)]">
+      <div className="max-h-[min(72vh,900px)] overflow-auto overscroll-x-contain">
+        <table className="w-full border-separate border-spacing-0 text-xs">
+          <thead className="sticky top-0 z-20">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((h) => {
                   const sorted = h.column.getIsSorted();
+                  const first = h.index === 0;
                   return (
-                    <th key={h.id} scope="col"
-                      className="whitespace-nowrap border-b border-[var(--border)] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                    <th key={h.id} scope="col" aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                      className={`whitespace-nowrap border-b border-[var(--border)] bg-[var(--surface-2)]/95 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)] backdrop-blur ${first ? "sticky left-0 z-10" : ""}`}>
                       {h.isPlaceholder ? null : h.column.getCanSort() ? (
-                        <button onClick={h.column.getToggleSortingHandler()} className="flex items-center gap-1 hover:text-[var(--text)]">
+                        <button type="button" onClick={h.column.getToggleSortingHandler()} className={`group/sort -mx-1 flex items-center gap-1 rounded px-1 transition-colors hover:text-[var(--text)] ${sorted ? "text-[var(--text)]" : ""}`}>
                           {flexRender(h.column.columnDef.header, h.getContext())}
-                          {sorted === "asc" ? <ArrowUp size={10} /> : sorted === "desc" ? <ArrowDown size={10} /> : <ArrowUpDown size={10} className="opacity-30" />}
+                          {sorted === "asc" ? <ArrowUp size={10} className="text-brand-600" /> : sorted === "desc" ? <ArrowDown size={10} className="text-brand-600" /> : <ArrowUpDown size={10} className="opacity-0 transition-opacity group-hover/sort:opacity-60" />}
                         </button>
                       ) : flexRender(h.column.columnDef.header, h.getContext())}
                     </th>
@@ -139,9 +140,9 @@ export function DataTable<T>({
             {pageRows.map((row) => (
               <tr key={row.id}
                 onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                className={`border-b border-[var(--border)] last:border-0 ${onRowClick ? "cursor-pointer hover:bg-[var(--surface-3)]" : ""}`}>
-                {row.getVisibleCells().map((c) => (
-                  <td key={c.id} className="whitespace-nowrap px-3 py-1.5">{flexRender(c.column.columnDef.cell, c.getContext())}</td>
+                className={`group/row transition-colors duration-100 hover:bg-[color-mix(in_oklab,var(--brand-500)_5%,var(--surface))] ${onRowClick ? "cursor-pointer" : ""}`}>
+                {row.getVisibleCells().map((c, ci) => (
+                  <td key={c.id} className={`whitespace-nowrap border-b border-[var(--border)] px-3 py-[var(--row-y)] group-last/row:border-0 ${ci === 0 ? "sticky left-0 z-[1] bg-[var(--surface)] shadow-[1px_0_0_var(--border)] group-hover/row:bg-[color-mix(in_oklab,var(--brand-500)_5%,var(--surface))]" : ""}`}>{flexRender(c.column.columnDef.cell, c.getContext())}</td>
                 ))}
               </tr>
             ))}

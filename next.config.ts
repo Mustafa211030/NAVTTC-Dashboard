@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 /**
  * Server build (not static export): the AI assistant needs /api/chat and
@@ -7,6 +8,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: { unoptimized: true },
   trailingSlash: true,
+  // Pin the project root so Turbopack never walks up into parent folders.
+  turbopack: { root: path.resolve(__dirname) },
 };
 
 export default nextConfig;

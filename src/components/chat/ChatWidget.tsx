@@ -105,7 +105,7 @@ export function ChatWidget() {
   return (
     <div className="no-print">
       {open && (
-        <div className="fixed bottom-20 right-4 z-[60] flex h-[min(78vh,36rem)] w-[min(94vw,26rem)] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+        <div className="pop rise no-print fixed bottom-20 right-4 z-[60] flex h-[min(78vh,36rem)] w-[min(94vw,26rem)] origin-bottom-right flex-col overflow-hidden !rounded-2xl">
           <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5">
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-[var(--text)]">Data assistant</div>
@@ -148,7 +148,7 @@ export function ChatWidget() {
               return (
                 <div key={m.id}
                   className={`max-w-[92%] whitespace-pre-wrap rounded-lg px-3 py-2 text-[13px] leading-relaxed ${
-                    m.role === "user" ? "ml-auto bg-brand-600 text-white" : "bg-[var(--surface-3)] text-[var(--text)]"}`}>
+                    m.role === "user" ? "ml-auto bg-accent-grad text-white" : "bg-[var(--surface-3)] text-[var(--text)]"}`}>
                   {text}
                 </div>
               );
@@ -176,7 +176,7 @@ export function ChatWidget() {
               <button type="button" onClick={stop} className="shrink-0 rounded-md bg-[var(--surface-3)] px-3 py-2 text-[12px]">Stop</button>
             ) : (
               <button type="submit" disabled={!input.trim() || recording} aria-label="Send"
-                className="shrink-0 rounded-md bg-brand-600 p-2 text-white disabled:opacity-40">
+                className="ctl bg-accent-grad shrink-0 rounded-lg p-2 text-white disabled:opacity-40">
                 <Send size={15} />
               </button>
             )}
@@ -185,7 +185,7 @@ export function ChatWidget() {
       )}
 
       <button onClick={() => setOpen((v) => !v)} aria-label={open ? "Close chat" : "Open data assistant"}
-        className="fixed bottom-4 right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg hover:opacity-90">
+        className="ctl no-print bg-accent-grad fixed bottom-4 right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full text-white shadow-[0_12px_30px_-8px_var(--brand-500)] ring-1 ring-white/20 hover:scale-105 hover:shadow-[0_16px_40px_-8px_var(--brand-500)]">
         {open ? <X size={20} /> : <MessageCircle size={20} />}
       </button>
     </div>

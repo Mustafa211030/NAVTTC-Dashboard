@@ -1,17 +1,18 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { EChartsOption } from "echarts";
 import { Building2, Users, UserCheck, Gauge, Award, AlertTriangle, Layers, ShieldCheck, TrendingDown, GitCompareArrows, ArrowRight } from "lucide-react";
 import { useDash } from "@/components/providers/FilterProvider";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { KPICard, type KpiBreakdown } from "@/components/dashboard/KPICard";
+import { useBatchTrend } from "@/components/dashboard/useBatchTrend";
 import { ProgramCard, RankPanel, FlaggedPanel, SectionTitle } from "@/components/dashboard/widgets";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { RankedBars, GradeMix, HeatmapCard, CategoryProfile, FunnelCard, SpreadCard, DistributionCard, ScatterCard } from "@/components/charts/blocks";
 import { ComponentBars } from "@/components/charts/ComponentBars";
 import { PakistanMap } from "@/components/charts/PakistanMap";
-import { Card, EmptyState, Badge } from "@/components/ui";
+import { Card, EmptyState, Badge, Seg } from "@/components/ui";
 import { statOf, groupBy } from "@/lib/aggregate";
 import { fmtInt, fmtPct, fmtCompact, fmtMonth, fmtDate, REGION_COLORS, scoreColor, CHART_PALETTE } from "@/config";
 import type { Program } from "@/types";
@@ -25,6 +26,7 @@ export function OverviewModule() {
 
 function PortfolioOverview() {
   const { data, rows, institutes, kpis, isEmpty, reset, scope, toggle } = useDash();
+  const series = useBatchTrend();
 
   const perProgram = useMemo(() => scope.programs.map((p) => {
     const pr = rows.filter((r) => r.p === p.slug);
@@ -65,63 +67,63 @@ function PortfolioOverview() {
         description="Third-party monitoring results for every NAVTTC programme in one place. Each programme is scored on its own rubric; programmes are compared on shared, normalised measures." />
 
       {/* Hero */}
-      <Card className="rise relative mb-4 overflow-hidden border-0 p-5 text-white shadow-lg" style={{ background: "linear-gradient(125deg, #0a1526 0%, #12213a 45%, #1e40af 100%)" }}>
-        <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-brand-500/30 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 left-1/3 h-56 w-56 rounded-full bg-emerald-500/20 blur-3xl" />
+      <section className="hero-surface rise relative mb-4 overflow-hidden rounded-[18px] p-5 text-white sm:p-6">
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-xl">
-            <div className="text-[10.5px] font-bold uppercase tracking-[.16em] text-brand-100/80">NAVTTC skills programmes · {span}</div>
-            <div className="mt-1 text-2xl font-extrabold leading-tight sm:text-3xl">
-              {fmtInt(kpis.enrolled)} trainees across {fmtInt(kpis.uniqueInstitutes)} institutes
+            <div className="t-eyebrow inline-flex items-center gap-2 text-white/60"><span className="live-dot text-emerald-400" /> NAVTTC skills programmes · {span}</div>
+            <div className="t-display mt-2.5">
+              <span className="num">{fmtInt(kpis.enrolled)}</span> trainees across <span className="num text-accent-grad [--brand-500:#a5b4fc] [--brand-2:#67e8f9]">{fmtInt(kpis.uniqueInstitutes)}</span> institute{kpis.uniqueInstitutes === 1 ? "" : "s"}
             </div>
-            <p className="mt-1.5 text-[13px] text-ink-200">
-              {kpis.programs} programme{kpis.programs === 1 ? "" : "s"} · {fmtInt(kpis.assessments)} trade assessments · {kpis.trades} trades · {kpis.districts} districts in {kpis.regions} regions.
-              {multi > 0 && <> {multi} institutes were assessed in more than one programme.</>}
+            <p className="mt-2 text-[13px] leading-relaxed text-white/65">
+              {kpis.programs} programme{kpis.programs === 1 ? "" : "s"} · {fmtInt(kpis.assessments)} trade assessments · {kpis.trades} trade{kpis.trades === 1 ? "" : "s"} · {kpis.districts} district{kpis.districts === 1 ? "" : "s"} in {kpis.regions} region{kpis.regions === 1 ? "" : "s"}.
+              {multi > 0 && <> {multi === 1 ? "1 institute was" : `${multi} institutes were`} assessed in more than one programme.</>}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="stagger grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-3 xl:grid-cols-6">
             {perProgram.map((x) => (
-              <Link key={x.p.slug} href={`/p/${x.p.slug}`} className="group rounded-xl border border-white/10 bg-white/8 px-3 py-2 backdrop-blur transition hover:bg-white/15">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-ink-200"><span className="h-2 w-2 rounded-full" style={{ background: x.p.color }} />{x.p.short}</div>
-                <div className="num mt-0.5 text-lg font-bold leading-none">{x.mean?.toFixed(1) ?? "—"}</div>
-                <div className="text-[9.5px] text-ink-300">{x.insts} inst · {fmtCompact(x.st.enrolled)}</div>
+              <Link key={x.p.slug} href={`/p/${x.p.slug}`}
+                className="group relative overflow-hidden rounded-xl bg-white/[.06] px-3 py-2.5 ring-1 ring-inset ring-white/10 backdrop-blur-md transition-[background-color,transform,box-shadow] duration-300 ease-[var(--ease-out-expo)] hover:-translate-y-0.5 hover:bg-white/[.11] hover:shadow-[0_10px_30px_-10px_rgb(0_0_0/.6)]">
+                <span aria-hidden className="absolute inset-x-0 top-0 h-[2px] opacity-80" style={{ background: x.p.color }} />
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-white/70"><span className="h-1.5 w-1.5 rounded-full" style={{ background: x.p.color }} />{x.p.short}</div>
+                <div className="num mt-1 text-xl font-bold leading-none">{x.mean?.toFixed(1) ?? "—"}</div>
+                <div className="num mt-1 text-[9.5px] text-white/50">{x.insts} inst · {fmtCompact(x.st.enrolled)}</div>
               </Link>
             ))}
           </div>
         </div>
-      </Card>
+      </section>
 
       {/* KPIs */}
-      <div className="mb-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KPICard label="Institutes" value={kpis.institutes} format={(n) => fmtInt(n)} icon={Building2} accent="#2563eb"
+      <div className="stagger mb-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KPICard label="Institutes" {...series(k => k.institutes, "count")} value={kpis.institutes} format={(n) => fmtInt(n)} icon={Building2} accent="#2563eb"
           sub={<>{fmtInt(kpis.uniqueInstitutes)} unique · {fmtInt(kpis.assessments)} trade assessments</>}
           breakdown={bd((x) => x.insts, (v) => fmtInt(v))}
           methodology={<><strong>Programme-institutes</strong><br />An institute assessed in two programmes counts once per programme. &ldquo;Unique&rdquo; links the same institute across programmes by Institute ID (or name where no ID was recorded).</>} />
-        <KPICard label="Trainees enrolled" value={kpis.enrolled} format={(n) => fmtCompact(n)} icon={Users} accent="#0891b2"
+        <KPICard label="Trainees enrolled" {...series(k => k.enrolled, "count")} value={kpis.enrolled} format={(n) => fmtCompact(n)} icon={Users} accent="#0891b2"
           sub={<>of {fmtInt(kpis.approvedCapacity)} approved seats · {fmtPct(kpis.utilizationRate)} filled</>}
           breakdown={bd((x) => x.st.enrolled, (v) => fmtCompact(v))}
           methodology={<><strong>Enrolled</strong><br />Σ Enrolled across programmes. PMYSDP B-III records trainees registered on the biometric device in this column.</>} />
-        <KPICard label="Attendance" value={(kpis.attendanceRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={UserCheck} accent="#059669"
+        <KPICard label="Attendance" {...series(k => k.attendanceRate, "rate")} value={(kpis.attendanceRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={UserCheck} accent="#059669"
           gauge={kpis.attendanceRate} sub={<>{fmtPct(kpis.presenceRate)} present of enrolled</>}
           breakdown={bd((x) => x.st.attendanceRate, (v) => fmtPct(v, 0))} breakdownMode="scale" scaleMax={1}
           methodology={<><strong>Attendance (programme rules)</strong><br />Pooled Σ numerator ÷ Σ denominator, each programme using the rule in its own Scoring Criteria sheet: CNIC ÷ Approved (B-II, B-III), Present ÷ Approved (B-I), CNIC ÷ Enrolled (cluster programmes).</>} />
-        <KPICard label="Mean institute score" value={kpis.meanInstituteScore ?? 0} format={(n) => n.toFixed(1)} icon={Gauge} accent="#7c3aed"
+        <KPICard label="Mean institute score" {...series(k => k.meanInstituteScore, "score")} value={kpis.meanInstituteScore ?? 0} format={(n) => n.toFixed(1)} icon={Gauge} accent="#7c3aed"
           gauge={(kpis.meanInstituteScore ?? 0) / 100} sub="out of 100, on each programme's own rubric"
           breakdown={bd((x) => x.mean, (v) => v.toFixed(1))} breakdownMode="scale" scaleMax={100}
           methodology={<><strong>Mean institute score</strong><br />Each institute scores the mean of its trade scores; this is the mean across institutes. Rubrics differ by programme (11, 15 or 16 criteria), each totalling 100.</>} />
-        <KPICard label="Excellent institutes" value={kpis.excellent} format={(n) => fmtInt(n)} icon={Award} accent="#10b981"
+        <KPICard label="Excellent institutes" {...series(k => k.excellent, "count")} value={kpis.excellent} format={(n) => fmtInt(n)} icon={Award} accent="#10b981"
           sub={<>{fmtPct(kpis.excellentShare)} of institutes score 80+</>}
           breakdown={bd((x) => x.exc, (v) => fmtPct(v, 0))} breakdownMode="scale" scaleMax={1}
           methodology={<><strong>Excellent</strong><br />Institute score of 80 or above, per the grade bands in every programme&apos;s Scoring Criteria sheet.</>} />
-        <KPICard label="CNIC verified" value={(kpis.verificationRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={ShieldCheck} accent="#0d9488"
+        <KPICard label="CNIC verified" {...series(k => k.verificationRate, "rate")} value={(kpis.verificationRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={ShieldCheck} accent="#0d9488"
           gauge={kpis.verificationRate} sub={<>{fmtInt(kpis.cnicVerified)} verified of approved seats</>}
           breakdown={bd((x) => x.st.verificationRate, (v) => fmtPct(v, 0))} breakdownMode="scale" scaleMax={1}
           methodology={<><strong>CNIC verified ÷ approved capacity</strong><br />The one attendance measure computed identically in every programme — use it for strict like-for-like comparison.</>} />
-        <KPICard label="Dropout" value={(kpis.dropoutRate ?? 0) * 100} format={(n) => n.toFixed(2) + "%"} icon={TrendingDown} accent="#d97706"
+        <KPICard label="Dropout" {...series(k => k.dropoutRate, "rate", { invert: true })} value={(kpis.dropoutRate ?? 0) * 100} format={(n) => n.toFixed(2) + "%"} icon={TrendingDown} accent="#d97706"
           sub={<>{fmtInt(kpis.droppedOut)} trainees dropped out</>}
           breakdown={bd((x) => x.st.dropoutRate, (v) => fmtPct(v, 1))} breakdownMode="scale"
           methodology={<><strong>Dropout</strong><br />Σ Dropped Out ÷ Σ Enrolled.</>} />
-        <KPICard label="Flagged institutes" value={kpis.flagged} format={(n) => fmtInt(n)} icon={AlertTriangle} accent="#dc2626"
+        <KPICard label="Flagged institutes" {...series(k => k.flagged, "count", { invert: true })} value={kpis.flagged} format={(n) => fmtInt(n)} icon={AlertTriangle} accent="#dc2626"
           sub={<>{kpis.belowAverage} graded Poor or Closed</>}
           breakdown={bd((x) => x.flagged, (v) => fmtInt(v))} breakdownMode="scale"
           methodology={<><strong>Flagged</strong><br />Institutes with a written monitor note or a workbook grade override (fake, non-functional, closed, critical).</>} />
@@ -172,7 +174,7 @@ function PortfolioOverview() {
               mostly across PMYSDP Batches I, II and III. Track whether each one improved, held or slipped between rounds.
             </p>
           </div>
-          <Link href="/journey" className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">
+          <Link href="/journey" className="ctl bg-accent-grad mt-3 inline-flex items-center gap-1.5 self-start rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110">
             Open journeys <ArrowRight size={13} />
           </Link>
         </Card>
@@ -185,7 +187,8 @@ function PortfolioOverview() {
 /** Programmes in chronological order: enrolment bars with score and attendance lines. */
 function TimelineCard({ programs, className }: { programs: Program[]; className?: string }) {
   const { rows, institutes, scope } = useDash();
-  const items = useMemo(() => [...programs].sort((a, b) => {
+  const [range, setRange] = useState<"1" | "2" | "all">("all");
+  const sorted = useMemo(() => [...programs].sort((a, b) => {
     const da = a.period?.to ?? a.assessmentDate ?? "9999"; const db = b.period?.to ?? b.assessmentDate ?? "9999";
     return da === db ? a.order - b.order : da.localeCompare(db);
   }).map((p) => {
@@ -196,6 +199,12 @@ function TimelineCard({ programs, className }: { programs: Program[]; className?
     return { p, st, mean, when };
   }), [programs, rows, institutes]);
   void scope;
+  // Range: the latest dated batch, the last two, or every programme (undated ones last).
+  const items = useMemo(() => {
+    if (range === "all") return sorted;
+    const dated = sorted.filter((x) => x.p.period || x.p.assessmentDate);
+    return dated.slice(-Number(range));
+  }, [sorted, range]);
 
   const option: EChartsOption = {
     legend: { top: 0 },
@@ -227,6 +236,7 @@ function TimelineCard({ programs, className }: { programs: Program[]; className?
 
   return (
     <ChartCard title="Programme timeline" className={className}
+      actions={<Seg value={range} onChange={setRange} label="Time range" options={[{ value: "1", label: "Latest", title: "Latest dated batch" }, { value: "2", label: "Last 2", title: "Last two dated batches" }, { value: "all", label: "All", title: "Every programme" }]} />}
       subtitle="Chronological where visit dates exist · bars = enrolment, lines = mean score & attendance"
       height={330}
       methodology={<><strong>Timeline</strong><br />Programmes are ordered by their latest visit date (PMYSDP B-I: Mar–May 2024, B-II: Apr–May 2025, B-III: May 2026). Workbooks without dates are placed after, in registry order.</>}
@@ -239,6 +249,7 @@ function TimelineCard({ programs, className }: { programs: Program[]; className?
 
 function ProgramOverview({ program }: { program: Program }) {
   const { data, rows, institutes, kpis, isEmpty, reset, toggle } = useDash();
+  const series = useBatchTrend();
 
   const regions = useMemo(() => groupBy(rows, (r) => r.region).sort((a, b) => b.enrolled - a.enrolled), [rows]);
   const bd = (val: (s: (typeof regions)[number]) => number | null, disp: (v: number) => string): KpiBreakdown[] =>
@@ -264,55 +275,54 @@ function ProgramOverview({ program }: { program: Program }) {
       <PageHeader page="Overview" title="Programme Overview"
         description={`Monitoring results for ${program.name}, scored on its own ${program.rubric.components.length}-criteria rubric.`} />
 
-      <Card className="rise relative mb-4 overflow-hidden border-0 p-5 text-white shadow-lg" style={{ background: `linear-gradient(120deg, #0a1526 0%, #12213a 45%, ${program.color} 140%)` }}>
-        <div className="pointer-events-none absolute -right-12 -top-16 h-60 w-60 rounded-full blur-3xl" style={{ background: program.color, opacity: 0.35 }} />
+      <section className="hero-surface rise relative mb-4 overflow-hidden rounded-[18px] p-5 text-white sm:p-6" style={{ ["--hero" as string]: program.color }}>
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <div className="flex flex-wrap items-center gap-2 text-[10.5px] font-bold uppercase tracking-[.16em] text-white/70">
               <span>{program.family}</span><span>·</span><span>{when}</span>
             </div>
-            <div className="mt-1 text-2xl font-extrabold leading-tight sm:text-3xl">{program.fullName}</div>
+            <div className="t-display mt-2">{program.fullName}</div>
             <div className="mt-2 flex flex-wrap gap-1.5 text-[10.5px]">
-              <span className="rounded-full bg-white/12 px-2 py-0.5">Rubric: {program.rubric.label}</span>
-              <span className="rounded-full bg-white/12 px-2 py-0.5">Attendance: {program.attendanceRule.label}</span>
-              <span className="rounded-full bg-white/12 px-2 py-0.5">Source: {program.sourceFile}</span>
+              <span className="rounded-full bg-white/[.08] px-2.5 py-1 ring-1 ring-inset ring-white/10">Rubric: {program.rubric.label}</span>
+              <span className="rounded-full bg-white/[.08] px-2.5 py-1 ring-1 ring-inset ring-white/10">Attendance: {program.attendanceRule.label}</span>
+              <span className="rounded-full bg-white/[.08] px-2.5 py-1 ring-1 ring-inset ring-white/10">Source: {program.sourceFile}</span>
             </div>
           </div>
-          <div className="flex gap-4">
+          <div className="stagger flex gap-6">
             {[["Institutes", fmtInt(kpis.institutes)], ["Trainees", fmtCompact(kpis.enrolled)], ["Mean score", kpis.meanInstituteScore?.toFixed(1) ?? "—"]].map(([k, v]) => (
               <div key={k}>
-                <div className="num text-2xl font-extrabold leading-none">{v}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-wide text-white/65">{k}</div>
+                <div className="num text-[28px] font-bold leading-none">{v}</div>
+                <div className="t-eyebrow mt-1.5 text-white/55">{k}</div>
               </div>
             ))}
           </div>
         </div>
-      </Card>
+      </section>
 
-      <div className="mb-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KPICard label="Institutes" value={kpis.institutes} format={(n) => fmtInt(n)} icon={Building2} accent={program.color}
+      <div className="stagger mb-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KPICard label="Institutes" {...series(k => k.institutes, "count")} value={kpis.institutes} format={(n) => fmtInt(n)} icon={Building2} accent={program.color}
           sub={<>{fmtInt(kpis.assessments)} trade assessments · {kpis.trades} trades</>} breakdown={bd((s) => s.institutes, (v) => fmtInt(v))}
           methodology={<><strong>Institutes</strong><br />Distinct institutes in the filtered rows{program.slug === "cbi-b2" ? " — matched on name, because this workbook records no Institute ID" : ""}.</>} />
-        <KPICard label={program.enrolledLabel} value={kpis.enrolled} format={(n) => fmtCompact(n)} icon={Users} accent="#0891b2"
+        <KPICard label={program.enrolledLabel} {...series(k => k.enrolled, "count")} value={kpis.enrolled} format={(n) => fmtCompact(n)} icon={Users} accent="#0891b2"
           sub={<>of {fmtInt(kpis.approvedCapacity)} approved seats · {fmtPct(kpis.utilizationRate)} filled</>} breakdown={bd((s) => s.enrolled, (v) => fmtCompact(v))}
           methodology={<><strong>{program.enrolledLabel}</strong><br />Column M of the template.</>} />
-        <KPICard label="Attendance" value={(kpis.attendanceRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={UserCheck} accent="#059669"
+        <KPICard label="Attendance" {...series(k => k.attendanceRate, "rate")} value={(kpis.attendanceRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={UserCheck} accent="#059669"
           gauge={kpis.attendanceRate} sub={<>{program.attendanceRule.label}</>} breakdown={bd((s) => s.attendanceRate, (v) => fmtPct(v, 0))} breakdownMode="scale" scaleMax={1}
           methodology={<><strong>Attendance</strong><br />{program.attendanceRule.label}, pooled across rows — the basis this programme&apos;s Attendance Score is banded on.</>} />
-        <KPICard label="Mean institute score" value={kpis.meanInstituteScore ?? 0} format={(n) => n.toFixed(1)} icon={Gauge} accent="#7c3aed"
+        <KPICard label="Mean institute score" {...series(k => k.meanInstituteScore, "score")} value={kpis.meanInstituteScore ?? 0} format={(n) => n.toFixed(1)} icon={Gauge} accent="#7c3aed"
           gauge={(kpis.meanInstituteScore ?? 0) / 100} sub={<>Trade-level mean {kpis.meanTradeScore?.toFixed(1) ?? "—"}</>}
           breakdown={bd((s) => s.meanScore, (v) => v.toFixed(1))} breakdownMode="scale" scaleMax={100}
           methodology={<><strong>Institute score</strong><br />Mean of the institute&apos;s trade scores; each trade score is the sum of the {program.rubric.components.length} criteria (max 100).</>} />
-        <KPICard label="Excellent institutes" value={kpis.excellent} format={(n) => fmtInt(n)} icon={Award} accent="#10b981"
+        <KPICard label="Excellent institutes" {...series(k => k.excellent, "count")} value={kpis.excellent} format={(n) => fmtInt(n)} icon={Award} accent="#10b981"
           sub={<>{fmtPct(kpis.excellentShare)} score 80+</>} breakdown={bd((s) => s.excellentShare, (v) => fmtPct(v, 0))} breakdownMode="scale" scaleMax={1}
           methodology={<><strong>Excellent</strong><br />Institute score 80 or above. Region bars show the share of trade assessments at 80+.</>} />
-        <KPICard label="Presence" value={(kpis.presenceRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={Layers} accent="#db2777"
+        <KPICard label="Presence" {...series(k => k.presenceRate, "rate")} value={(kpis.presenceRate ?? 0) * 100} format={(n) => n.toFixed(1) + "%"} icon={Layers} accent="#db2777"
           gauge={kpis.presenceRate} sub={<>{fmtInt(kpis.present)} present of {fmtInt(kpis.enrolled)}</>} breakdown={bd((s) => s.presenceRate, (v) => fmtPct(v, 0))} breakdownMode="scale" scaleMax={1}
           methodology={<><strong>Presence</strong><br />Σ Present ÷ Σ Enrolled on the visit day.</>} />
-        <KPICard label="Dropout" value={(kpis.dropoutRate ?? 0) * 100} format={(n) => n.toFixed(2) + "%"} icon={TrendingDown} accent="#d97706"
+        <KPICard label="Dropout" {...series(k => k.dropoutRate, "rate", { invert: true })} value={(kpis.dropoutRate ?? 0) * 100} format={(n) => n.toFixed(2) + "%"} icon={TrendingDown} accent="#d97706"
           sub={<>{fmtInt(kpis.droppedOut)} trainees</>} breakdown={bd((s) => s.dropoutRate, (v) => fmtPct(v, 1))} breakdownMode="scale"
           methodology={<><strong>Dropout</strong><br />Σ Dropped Out ÷ Σ Enrolled.</>} />
-        <KPICard label="Flagged institutes" value={kpis.flagged} format={(n) => fmtInt(n)} icon={AlertTriangle} accent="#dc2626"
+        <KPICard label="Flagged institutes" {...series(k => k.flagged, "count", { invert: true })} value={kpis.flagged} format={(n) => fmtInt(n)} icon={AlertTriangle} accent="#dc2626"
           sub={<>{kpis.belowAverage} graded Poor or Closed</>}
           breakdown={regions.map((s, i) => ({ label: s.key, color: REGION_COLORS[s.key] ?? CHART_PALETTE[i], value: institutes.filter((x) => x.region === s.key && x.flagged).length, display: String(institutes.filter((x) => x.region === s.key && x.flagged).length), onClick: () => toggle("region", s.key) }))} breakdownMode="scale"
           methodology={<><strong>Flagged</strong><br />Institutes with a written monitor note or a workbook grade override.</>} />

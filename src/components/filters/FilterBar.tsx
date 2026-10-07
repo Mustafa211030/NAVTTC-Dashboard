@@ -1,10 +1,14 @@
 "use client";
 import { useMemo, useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { AnimatePresence, m } from "motion/react";
 import { Search, RotateCcw, SlidersHorizontal, Flag } from "lucide-react";
 import { useDash } from "../providers/FilterProvider";
 import { GRADE_COLORS, GRADE_ORDER, STATUS_COLORS } from "@/config";
 import { MultiSelect, Chip, Button } from "../ui";
 import type { AssessmentRow, FilterState } from "@/types";
+import { InstitutePicker } from "./InstitutePicker";
+import { directoryOf } from "@/lib/institutes";
 
 function useDebounced<T>(value: T, ms = 220): T {
   const [v, setV] = useState(value);
@@ -31,6 +35,8 @@ export function FilterBar() {
   const [q, setQ] = useState(filters.search);
   const debounced = useDebounced(q);
   const [expanded, setExpanded] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => { if (debounced !== filters.search) patch({ search: debounced }); }, [debounced]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setQ(filters.search); }, [filters.search]);
@@ -56,7 +62,9 @@ export function FilterBar() {
     return ["Active", "Critical", "Fake", "Non-Functional", "Closed"].filter((x) => s.has(x as never));
   }, [data, scope]);
 
+  const dir = directoryOf(data);
   const chips: { key: string; label: string; color?: string; onRemove: () => void }[] = [
+    ...filters.institute.map((v) => ({ key: `i-${v}`, label: dir.byKey.get(v)?.name ?? v, color: "#1d4ed8", onRemove: () => patch({ institute: filters.institute.filter((x) => x !== v) }) })),
     ...filters.program.map((v) => ({ key: `p-${v}`, label: data.programBySlug.get(v)?.short ?? v, color: data.programBySlug.get(v)?.color, onRemove: () => patch({ program: filters.program.filter((x) => x !== v) }) })),
     ...filters.region.map((v) => ({ key: `r-${v}`, label: v, onRemove: () => patch({ region: filters.region.filter((x) => x !== v) }) })),
     ...filters.district.map((v) => ({ key: `d-${v}`, label: v, onRemove: () => patch({ district: filters.district.filter((x) => x !== v) }) })),
@@ -71,14 +79,22 @@ export function FilterBar() {
     chips.push({ key: "s", label: `Score ${filters.scoreMin ?? 0}–${filters.scoreMax ?? 100}`, onRemove: () => patch({ scoreMin: null, scoreMax: null }) });
   if (filters.flaggedOnly) chips.push({ key: "f", label: "Flagged only", color: "#dc2626", onRemove: () => patch({ flaggedOnly: false }) });
 
+  if (pathname.replace(/\/$/, "") === "/settings") return null;
+
   return (
-    <div className="no-print filter-controls sticky top-[51px] z-30 -mx-4 mb-4 border-b border-[var(--border)] bg-[var(--surface)]/90 px-4 py-2.5 backdrop-blur-md sm:-mx-6 sm:px-6">
+    <div className="no-print filter-controls glass relative z-30 mb-4 rounded-2xl px-3 py-2.5 shadow-[var(--shadow-card)] sm:sticky sm:top-[64px] lg:top-[78px]">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
+        <InstitutePicker />
+        <button type="button" onClick={() => setMobileOpen((v) => !v)} aria-expanded={mobileOpen}
+          className="ctl flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 text-xs sm:hidden">
+          <SlidersHorizontal size={12} /> Filters{activeCount ? <span className="num grid h-4 min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[9.5px] font-bold text-white">{activeCount}</span> : null}
+        </button>
+        <div className={mobileOpen ? "contents" : "hidden sm:contents"}>
+        <div className="relative min-w-[160px] flex-1 sm:max-w-[220px]">
           <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input value={q} onChange={(e) => setQ(e.target.value)} type="search"
-            placeholder="Search institutes, districts, trades…" aria-label="Search the dataset"
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1.5 pl-7 pr-2 text-xs outline-none focus:border-brand-500" />
+            placeholder="Text search…" aria-label="Free-text search across the dataset"
+            className="h-8 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] pl-7 pr-2 text-xs outline-none transition-colors placeholder:text-[var(--text-subtle)] hover:border-[var(--border-strong)] focus:border-brand-500 focus:ring-2 focus:ring-[color-mix(in_oklab,var(--brand-500)_22%,transparent)]" />
         </div>
 
         {scope.mode === "portfolio" && (
@@ -91,13 +107,17 @@ export function FilterBar() {
         <MultiSelect label="Grade" width="w-28" selected={filters.grade} onChange={(v) => patch({ grade: v })}
           options={gradeOpts.map((g) => ({ value: g, label: g, color: GRADE_COLORS[g] }))} />
 
-        <button onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}
-          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${expanded ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-700/20 dark:text-brand-100" : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-3)]"}`}>
-          <SlidersHorizontal size={12} /> More filters
+        <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}
+          className={`ctl flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs ${expanded ? "border-[color-mix(in_oklab,var(--brand-500)_50%,var(--border))] bg-[color-mix(in_oklab,var(--brand-500)_10%,var(--surface))] text-[var(--text)]" : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]"}`}>
+          <SlidersHorizontal size={12} className={`transition-transform duration-300 ${expanded ? "rotate-90" : ""}`} /> More filters
         </button>
+        </div>
 
-        <span className="num ml-auto hidden text-[11px] text-[var(--text-muted)] sm:inline">
-          <strong className="text-[var(--text)]">{rows.length.toLocaleString()}</strong> of {scopeRows.length.toLocaleString()} records · <strong className="text-[var(--text)]">{institutes.length}</strong> institutes
+        <span className="num ml-auto hidden items-center gap-2 text-[11px] text-[var(--text-muted)] sm:inline-flex">
+          <span className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--surface-3)]" aria-hidden>
+            <span className="block h-full origin-left rounded-full bg-accent-grad transition-transform duration-500 ease-[var(--ease-out-expo)]" style={{ transform: `scaleX(${scopeRows.length ? rows.length / scopeRows.length : 0})` }} />
+          </span>
+          <span><strong className="text-[var(--text)]">{rows.length.toLocaleString()}</strong> / {scopeRows.length.toLocaleString()} records · <strong className="text-[var(--text)]">{institutes.length}</strong> institutes</span>
         </span>
 
         {hasFilters && (
@@ -105,8 +125,11 @@ export function FilterBar() {
         )}
       </div>
 
+      <AnimatePresence initial={false}>
       {expanded && (
-        <div className="rise mt-2 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-2">
+        <m.div key="more" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-2">
           {packageOpts.length > 1 && <MultiSelect label="Package" width="w-32" selected={filters.package} onChange={(v) => patch({ package: v })} options={packageOpts} />}
           {batchOpts.length > 1 && <MultiSelect label="Batch" width="w-28" selected={filters.batch.map(String)} onChange={(v) => patch({ batch: v.map(Number) })} options={batchOpts} />}
           {statusOpts.length > 1 && (
@@ -124,7 +147,7 @@ export function FilterBar() {
               className="num w-14 rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 py-1 text-xs" />
           </label>
           <button onClick={() => patch({ flaggedOnly: !filters.flaggedOnly })} aria-pressed={filters.flaggedOnly}
-            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${filters.flaggedOnly ? "border-red-400 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300" : "border-[var(--border)] hover:bg-[var(--surface-3)]"}`}>
+            className={`ctl flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs ${filters.flaggedOnly ? "border-red-400 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300" : "border-[var(--border)] hover:bg-[var(--surface-3)]"}`}>
             <Flag size={12} /> Flagged institutes only
           </button>
           <div className="ml-auto flex flex-wrap gap-1">
@@ -137,11 +160,15 @@ export function FilterBar() {
             ))}
           </div>
         </div>
+        </m.div>
       )}
+      </AnimatePresence>
 
       {chips.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {chips.map((c) => <Chip key={c.key} color={c.color} onRemove={c.onRemove}>{c.label}</Chip>)}
+          <AnimatePresence initial={false}>
+            {chips.map((c) => <Chip key={c.key} color={c.color} onRemove={c.onRemove}>{c.label}</Chip>)}
+          </AnimatePresence>
         </div>
       )}
     </div>

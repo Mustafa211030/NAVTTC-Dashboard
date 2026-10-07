@@ -1,6 +1,7 @@
 import type { AssessmentRow, Institute, Portfolio, Program } from "../types";
 import { instKey, type InstFacts } from "./filters";
 import { gradeOf } from "../config";
+import { buildStandings, type Standing } from "./standings";
 
 /**
  * Indexed view over the portfolio file. Built once after the fetch; every
@@ -17,6 +18,8 @@ export interface PortfolioIndex {
   instituteByKey: Map<string, Institute>;
   institutesByGlobal: Map<string, Institute[]>;
   facts: Map<string, InstFacts>;
+  /** fixed whole-programme standings, key `${programSlug}|${instituteKey}` */
+  standings: Map<string, Standing>;
   tradeName: (norm: string) => string;
 }
 
@@ -39,6 +42,7 @@ export function indexPortfolio(raw: Portfolio): PortfolioIndex {
     raw, programs, programBySlug,
     rows: raw.rows, rowsByProgram,
     institutes: raw.institutes, instituteByKey, institutesByGlobal, facts,
+    standings: buildStandings(raw.institutes),
     tradeName: (n) => raw.tradeNames[n] ?? n,
   };
 }

@@ -173,6 +173,8 @@ export interface Portfolio {
 }
 
 export interface FilterState {
+  /** globalKey values — the same institute across every programme (max 5) */
+  institute: string[];
   program: string[];
   region: string[];
   district: string[];

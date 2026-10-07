@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { Card, Badge, ProgressBar, EmptyState, Tooltip } from "@/components/ui";
 import { InstituteOnePager } from "@/components/reports/InstituteOnePager";
+import { FocusButton, IdChip } from "@/components/filters/InstitutePicker";
 import { fmtInt, fmtPct, fmtScore, fmtDate, GRADE_COLORS, STATUS_COLORS, gradeOf, scoreColor, truncate } from "@/config";
 import { instKey } from "@/lib/filters";
 import { globalInstituteHref, instituteHref, programBase } from "@/lib/portfolio";
@@ -95,6 +96,8 @@ export function InstituteProfileModule({ instituteKey }: { instituteKey: string 
     <>
       <div className="no-print mb-3 flex flex-wrap items-center gap-3">
         <Link href={scope.href("/institutions")} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-brand-600"><ArrowLeft size={13} /> All {program.short} institutions</Link>
+        <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]"><IdChip entry={{ id: inst.instituteId, nameMatched: inst.instituteId === null }} small /> <FocusButton globalKey={inst.globalKey} /> focus dashboard</span>
+        <Link href={globalInstituteHref(inst.globalKey)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:underline">360° profile</Link>
         {others.length > 0 && (
           <Link href={globalInstituteHref(inst.globalKey)} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 dark:bg-brand-700/20 dark:text-brand-100">
             <GitCompareArrows size={12} /> Also assessed in {others.map((o) => data.programBySlug.get(o.p)?.short).join(", ")} — view journey

@@ -8,13 +8,15 @@ import type { Institute, Program } from "@/types";
 import { GRADE_COLORS, GRADE_ORDER, STATUS_COLORS, fmtCompact, fmtInt, fmtMonth, fmtPct, fmtScore, scoreColor, gradeOf } from "@/config";
 import { instituteHref, programBase } from "@/lib/portfolio";
 import { statOf } from "@/lib/aggregate";
+import { FocusButton } from "../filters/InstitutePicker";
 
 export function SectionTitle({ children, hint, id }: { children: React.ReactNode; hint?: string; id?: string }) {
   return (
-    <div id={id} className="mb-2 mt-6 flex items-baseline gap-3 first:mt-0">
-      <h2 className="text-[13px] font-bold uppercase tracking-[.1em] text-[var(--text-muted)]">{children}</h2>
-      <div className="h-px flex-1 bg-[var(--border)]" />
-      {hint && <span className="text-[11px] text-[var(--text-muted)]">{hint}</span>}
+    <div id={id} className="mb-3 mt-8 flex items-center gap-3 px-1 first:mt-0">
+      <span aria-hidden className="bg-accent-grad h-4 w-1 rounded-full" />
+      <h2 className="text-[13px] font-semibold tracking-[-.005em]">{children}</h2>
+      <div className="h-px flex-1 bg-gradient-to-r from-[var(--border)] to-transparent" />
+      {hint && <span className="hidden text-[11px] text-[var(--text-muted)] sm:inline">{hint}</span>}
     </div>
   );
 }
@@ -122,6 +124,7 @@ export function RankPanel({ title, items, tone, showProgram, viewAll }: { title:
                 </div>
               </div>
               {i.flagged && <AlertTriangle size={12} className="shrink-0 text-red-500" />}
+              <FocusButton globalKey={i.globalKey} />
               <Badge color={GRADE_COLORS[g]}>{g}</Badge>
               <span className="num w-10 shrink-0 text-right text-xs font-bold">{fmtScore(i.score, 1)}</span>
             </Link>
@@ -168,6 +171,7 @@ export function FlaggedPanel({ institutes, showProgram, limit = 12 }: { institut
                 </div>
                 {i.assessorNote && <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-red-700 dark:text-red-300">{i.assessorNote}</p>}
               </div>
+              <FocusButton globalKey={i.globalKey} />
               <Badge color={STATUS_COLORS[i.status] ?? GRADE_COLORS[i.grade]}>{i.status === "Active" ? i.grade : i.status}</Badge>
             </Link>
           );
