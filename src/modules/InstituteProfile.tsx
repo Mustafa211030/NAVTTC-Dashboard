@@ -109,7 +109,7 @@ export function InstituteProfileModule({ instituteKey }: { instituteKey: string 
         description={`${inst.district}, ${inst.region} · Institute ID ${inst.instituteId ?? "not recorded"} · ${inst.package ?? "—"}${inst.division ? ` · ${inst.division} division` : ""}`}
         printHeader={false} printLabel="Print one-pager" />
 
-      <InstituteOnePager inst={inst} rows={instRows} program={program} />
+      <InstituteOnePager inst={inst} rows={instRows} program={program} standing={data.standings.get(`${inst.p}|${inst.instituteKey}`)} />
 
       <div className="screen-only">
         {(inst.assessorNote || inst.status !== "Active" || inst.gradeOverride) && (

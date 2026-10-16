@@ -1,6 +1,6 @@
 "use client";
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { Printer, FileStack, Loader2, AlertTriangle } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Printer, FileStack, Loader2, AlertTriangle, Download, X, CheckCircle2 } from "lucide-react";
 import { useFilters } from "@/components/providers/FilterProvider";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { InstituteOnePager } from "@/components/reports/InstituteOnePager";
@@ -26,8 +26,12 @@ export function ReportsModule() {
   const [ready, setReady] = useState(false);
   const [building, setBuilding] = useState(false);
 
+  const [pdf, setPdf] = useState<{ state: "idle" | "building" | "done" | "error"; done: number; total: number; msg?: string; ms?: number; mb?: number }>({ state: "idle", done: 0, total: 0 });
+  const abort = useRef<AbortController | null>(null);
+
   // Any filter change invalidates an already-built batch.
-  useEffect(() => { setReady(false); }, [filters]);
+  useEffect(() => { setReady(false); setPdf({ state: "idle", done: 0, total: 0 }); abort.current?.abort(); }, [filters]);
+  useEffect(() => () => abort.current?.abort(), []);
 
   /** Assessment rows grouped by institute, so each sheet gets exactly its own records. */
   const rowsByInstitute = useMemo(() => {
@@ -53,6 +57,31 @@ export function ReportsModule() {
     setBuilding(false);
     if (thenPrint) window.print();
   }, []);
+
+  /**
+   * One PDF file for the whole batch, drawn page by page without building
+   * the sheets in the DOM. See lib/report-pdf.ts for why printing 600+
+   * one-pagers through the browser runs out of memory.
+   */
+  const downloadPdf = useCallback(async () => {
+    abort.current?.abort();
+    const ctrl = new AbortController();
+    abort.current = ctrl;
+    const t0 = performance.now();
+    setPdf({ state: "building", done: 0, total: ordered.length });
+    try {
+      const { buildReportsPdf, saveBlob } = await import("@/lib/report-pdf");
+      const items = ordered.map((i) => ({ inst: i, program: data.programBySlug.get(i.p)!, rows: rowsByInstitute.get(`${i.p}|${i.instituteKey}`) ?? [], standing: data.standings.get(`${i.p}|${i.instituteKey}`) }));
+      const blob = await buildReportsPdf(items, { signal: ctrl.signal, onProgress: (done, total) => setPdf((p) => ({ ...p, done, total })) });
+      const stamp = new Date().toISOString().slice(0, 10);
+      const who = (scope.program?.short ?? "All-Programmes").replace(/[^\w-]+/g, "-");
+      saveBlob(blob, `NAVTTC_Institute_Reports_${who}${hasFilters ? "_filtered" : ""}_${ordered.length}-institutes_${stamp}.pdf`);
+      setPdf({ state: "done", done: ordered.length, total: ordered.length, ms: performance.now() - t0, mb: blob.size / 1048576 });
+    } catch (e) {
+      if ((e as Error).name === "AbortError") setPdf({ state: "idle", done: 0, total: 0 });
+      else setPdf({ state: "error", done: 0, total: 0, msg: String((e as Error).message ?? e) });
+    }
+  }, [ordered, data, rowsByInstitute, scope.program, hasFilters]);
 
   const scopeText = `${hasFilters ? "the current filter selection" : "every institute"} in ${scope.label}`;
 
@@ -99,40 +128,64 @@ export function ReportsModule() {
                 the same layout as the individual one-pager.
               </p>
             </div>
-            <div className="flex shrink-0 gap-2">
-              {!ready && (
-                <Button variant="primary" onClick={() => build(true)} disabled={building}>
-                  {building ? <Loader2 size={14} className="animate-spin" /> : <FileStack size={14} />}
-                  {building ? "Building…" : `Generate & print ${ordered.length} pages`}
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {pdf.state === "building" ? (
+                <Button onClick={() => abort.current?.abort()}><X size={14} /> Cancel</Button>
+              ) : (
+                <Button variant="primary" onClick={downloadPdf}>
+                  <Download size={14} /> Download PDF · {ordered.length} institute{ordered.length === 1 ? "" : "s"}
                 </Button>
               )}
-              {ready && (
+              {!ready ? (
+                <Button onClick={() => build(true)} disabled={building || pdf.state === "building"} title="Builds every sheet in the page and opens the print dialog — fine for small batches">
+                  {building ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+                  {building ? "Building…" : "Print instead"}
+                </Button>
+              ) : (
                 <>
                   <Button onClick={() => build(false)} disabled={building}><FileStack size={14} /> Rebuild</Button>
-                  <Button variant="primary" onClick={() => window.print()}>
-                    <Printer size={14} /> Print {ordered.length} pages
-                  </Button>
+                  <Button onClick={() => window.print()}><Printer size={14} /> Print {ordered.length} pages</Button>
                 </>
               )}
             </div>
           </div>
 
-          {ordered.length > 120 && !ready && (
-            <div className="mt-3 flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5 dark:border-amber-800 dark:bg-amber-950/40">
+          {pdf.state === "building" && (
+            <div className="mt-3" role="status" aria-live="polite">
+              <div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
+                <span>Writing PDF… institute {pdf.done} of {pdf.total}</span>
+                <span className="num">{pdf.total ? Math.round((pdf.done / pdf.total) * 100) : 0}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                <div className="bg-accent-grad h-full origin-left rounded-full transition-transform duration-300" style={{ transform: `scaleX(${pdf.total ? pdf.done / pdf.total : 0})` }} />
+              </div>
+            </div>
+          )}
+          {pdf.state === "done" && (
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 size={14} /> Downloaded {pdf.total} institute reports as one PDF ({pdf.mb?.toFixed(1)} MB, {((pdf.ms ?? 0) / 1000).toFixed(1)} s). Check your Downloads folder.
+            </p>
+          )}
+          {pdf.state === "error" && (
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-red-600"><AlertTriangle size={14} /> Could not create the PDF: {pdf.msg}</p>
+          )}
+
+          {ordered.length > 80 && !ready && pdf.state !== "building" && (
+            <div className="mt-3 flex gap-2 rounded-lg border border-amber-300/70 bg-amber-50/70 p-2.5 dark:border-amber-500/30 dark:bg-amber-500/10">
               <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
               <p className="text-xs leading-relaxed">
-                {ordered.length} pages is a large job. Building takes a few seconds and the browser&apos;s
-                print preview will take longer still. To print a smaller run, set a Region or District
-                filter first — the batch always follows the active filters.
+                For {ordered.length} institutes use <strong>Download PDF</strong>. <em>Print instead</em> puts every sheet into the page
+                at once and the browser&apos;s print preview needs several GB of memory for a batch this size, which is why large
+                print jobs stall or fail on most PCs.
               </p>
             </div>
           )}
 
           <p className="mt-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
-            In the print dialog choose <strong>Save as PDF</strong> for a single file and enable
-            <strong> Background graphics</strong> so the logos and chart fills render. The browser&apos;s own
-            date, title and URL stamps are already suppressed by the print stylesheet; page numbers are
-            rendered by the report itself, one sheet per institute.
+            <strong>Download PDF</strong> writes one file with a sheet per institute (a sheet with many trades continues onto a
+            second page) and numbers the pages itself; it never loads the sheets into the page, so memory stays flat.
+            <strong> Print instead</strong> uses the browser&apos;s print dialog — choose <em>Save as PDF</em> and enable
+            <em> Background graphics</em>.
           </p>
         </Card>
 
@@ -157,7 +210,7 @@ export function ReportsModule() {
                     <tr key={`${i.p}-${i.instituteKey}`} className="border-b border-[var(--border)] last:border-0">
                       <td className="num px-3 py-1.5 text-[var(--text-muted)]">{idx + 1}</td>
                       <td className="px-3 py-1.5 text-[11px] font-semibold" style={{ color: data.programBySlug.get(i.p)?.color }}>{data.programBySlug.get(i.p)?.short}</td>
-                      <td className="num px-3 py-1.5">{i.rank}</td>
+                      <td className="num px-3 py-1.5">{(() => { const st = data.standings.get(`${i.p}|${i.instituteKey}`); return st?.rank != null ? `${st.tiedWith ? "=" : ""}${st.rank}` : "—"; })()}</td>
                       <td className="max-w-[300px] truncate px-3 py-1.5 font-medium">{i.instituteName}</td>
                       <td className="px-3 py-1.5">{i.district}</td>
                       <td className="num px-3 py-1.5">{i.assessments}</td>
@@ -183,6 +236,7 @@ export function ReportsModule() {
               inst={i}
               program={data.programBySlug.get(i.p)!}
               rows={rowsByInstitute.get(`${i.p}|${i.instituteKey}`) ?? []}
+              standing={data.standings.get(`${i.p}|${i.instituteKey}`)}
               pageNumber={idx + 1}
               pageCount={ordered.length}
             />

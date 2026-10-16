@@ -295,7 +295,7 @@ export function PakistanMap() {
     let raf = 0;
 
     (async () => {
-      const echarts = await import("echarts");
+      const echarts = await import("@/lib/echarts");
       echarts.registerMap("pakistan", geo as never);
       if (disposed || !elRef.current) return;
 

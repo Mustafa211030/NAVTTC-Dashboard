@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { AssessmentRow, Institute, Program } from "@/types";
 import { Letterhead } from "./Letterhead";
 import { gradeOf, TIER_RUBRIC, fmtInt, fmtPct, fmtScore } from "@/config";
+import type { Standing } from "@/lib/standings";
 
 /**
  * One institute, one A4 sheet, complete record.
@@ -29,7 +30,7 @@ const CODES: Record<string, string> = {
   tlm: "TLM", biometricDevice: "BDEV", signBoard: "SIGN", biometricSync: "BSYN", enrolmentPms: "EPMS",
   labs: "LABS", lessonPlans: "LSPL", courseContent: "CONT", impression: "IMPR",
 };
-const codeOf = (key: string, label: string) => CODES[key] ?? label.replace(/[^A-Za-z ]/g, "").split(/\s+/).map((w) => w[0]).join("").slice(0, 4).toUpperCase();
+export const codeOf = (key: string, label: string) => CODES[key] ?? label.replace(/[^A-Za-z ]/g, "").split(/\s+/).map((w) => w[0]).join("").slice(0, 4).toUpperCase();
 
 const n = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, ""));
 
@@ -37,8 +38,10 @@ const n = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace
 const FILL = { best: "#1a7f4b", mid: "#3d5a80", worst: "#a32020", track: "#dde3ea" };
 
 export function InstituteOnePager({
-  inst, rows, program, pageNumber = 1, pageCount = 1,
+  inst, rows, program, pageNumber = 1, pageCount = 1, standing,
 }: {
+  /** Fixed whole-programme standing; falls back to `inst.rank`. */
+  standing?: Standing | null;
   inst: Institute;
   program: Program;
   rows: AssessmentRow[];
@@ -89,7 +92,6 @@ export function InstituteOnePager({
     ["Dropped out", fmtInt(inst.droppedOut)],
     ["CNIC verified", fmtInt(inst.cnicVerified)],
     ["Attendance %", fmtPct(inst.attendanceRate)],
-    ["Utilisation %", fmtPct(inst.utilizationRate)],
   ];
 
   /* Category chart drawn as SVG so it stays crisp at any print resolution. */
@@ -117,7 +119,7 @@ export function InstituteOnePager({
           <div style={{ fontSize: "19pt", fontWeight: 800, lineHeight: 1 }}>{fmtScore(inst.score, 1)}</div>
           <div style={{ fontSize: "7pt", fontWeight: 700, marginTop: "1pt" }}>{grade}</div>
           <div style={{ fontSize: "5.4pt", color: "#444" }}>{TIER_RUBRIC[grade] ?? ""}</div>
-          <div style={{ fontSize: "5.8pt", color: "#444" }}>Rank {inst.rank} of {program.instituteCount} in {program.short}</div>
+          <div style={{ fontSize: "5.8pt", color: "#444" }}>{standing && standing.rank !== null ? `Rank ${standing.tiedWith ? "=" : ""}${standing.rank} of ${standing.of} in ${program.short}` : `Rank ${inst.rank} of ${program.instituteCount} in ${program.short}`}</div>
         </div>
       </div>
 
@@ -130,7 +132,7 @@ export function InstituteOnePager({
 
       {/* ---- headcounts ---- */}
       <h2>Enrolment and attendance</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "2.5pt" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${stats.length}, 1fr)`, gap: "2.5pt" }}>
         {stats.map(([k, v]) => (
           <div className="stat" key={k}>
             <div className="k">{k}</div>

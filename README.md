@@ -33,10 +33,12 @@ npm run dev          # http://localhost:3000
 
 Requires Node 20+.
 
-**Low-memory machines.** `npm run dev` (Turbopack) needs about 1.3–1.7 GB of free RAM
-and crashes with `memory allocation ... failed` when it can't get it. Use
-`npm run preview` instead: it builds once and serves the production app, which runs in
-about 150 MB. `npm run dev:webpack` is the alternative dev server if Turbopack misbehaves. The AI assistant needs `GROQ_API_KEY` (and optionally `GROQ_MODEL`) in `.env.local`.
+**Low-memory machines.** `npm run dev` (Turbopack) needs about 1–1.5 GB of free RAM. When Windows cannot provide it, the server dies with `memory allocation ... failed` or `Committing semi space failed ... heap out of memory`. In that case:
+
+- use `npm run preview`, which builds once and serves the production app in about 150 MB;
+- or close memory-heavy apps, or enlarge the Windows paging file.
+
+`next.config.ts` sets `turbopackMemoryEviction: "full"`, so the dev server hands memory back after each compile. ECharts is imported from `src/lib/echarts.ts` with only the chart types the dashboard uses, which keeps compiles small. `npm run dev:webpack` is an alternative dev server. The AI assistant needs `GROQ_API_KEY` (and optionally `GROQ_MODEL`) in `.env.local`.
 
 ---
 
@@ -108,6 +110,7 @@ to jump to any programme, page or institute, or to filter by district or trade.
   - The header holds the scope switcher, breadcrumbs, a `Ctrl+K` palette, the data-status popover, the **alerts centre** and the theme toggle.
 - **Alerts centre** (bell icon). Lists fake, critical, non-functional and closed institutes, institutes whose score dropped 10+ points since their previous programme, and high-severity workbook findings. Read state is remembered per browser.
 - **KPI cards** show a sparkline across PMYSDP B-I → B-III and a change pill against the previous batch, both under the current filters.
+- **Bulk reports** (`/reports`): **Download PDF** writes one PDF with a sheet per institute, straight from the data. It never builds 600+ sheets in the page, so it works on low-memory PCs; 688 institutes takes about 15 s and makes a ~5 MB file. *Print instead* is still there for small batches.
 - **Settings** (`/settings`): theme (light / dark / system), accent colour, density, motion, chart value labels and the start-up view.
 - **Design tokens, motion rules and performance notes** are in `docs/UI_ARCHITECTURE.md`.
 

@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   // Pin the project root so Turbopack never walks up into parent folders.
   turbopack: { root: path.resolve(__dirname) },
+  experimental: {
+    // Low-RAM machines: after each compile, hand as much memory back as
+    // possible (Turbopack keeps the work in its on-disk cache instead).
+    turbopackMemoryEviction: "full",
+  },
 };
 
 export default nextConfig;

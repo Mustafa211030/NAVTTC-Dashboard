@@ -10,13 +10,13 @@ export interface EChartHandle {
   instance: () => EChartsType | null;
 }
 
-type EchartsModule = typeof import("echarts");
+type EchartsModule = typeof import("@/lib/echarts");
 let mod: EchartsModule | null = null;
 let modPromise: Promise<EchartsModule> | null = null;
 /** ECharts lives in its own chunk, fetched once and shared by every chart. */
 function loadEcharts(): Promise<EchartsModule> {
   if (mod) return Promise.resolve(mod);
-  modPromise ??= import("echarts").then((m) => (mod = m));
+  modPromise ??= import("@/lib/echarts").then((m) => (mod = m));
   return modPromise;
 }
 
