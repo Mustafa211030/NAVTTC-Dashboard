@@ -78,7 +78,7 @@ function Notice({ children }: { children: React.ReactNode }) {
 
 function when(data: ReturnType<typeof useDash>["data"], r: Institute) {
   const p = data.programBySlug.get(r.p)!;
-  return r.visitDate ? fmtMonth(r.visitDate) : p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : "undated";
+  return r.visitDate ? fmtMonth(r.visitDate) : p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : p.reportDate ? `report ${fmtMonth(p.reportDate)}` : "undated";
 }
 
 function Spotlight({ entry, onClear, recordsInView }: { entry: InstituteEntry; onClear: () => void; recordsInView: number }) {

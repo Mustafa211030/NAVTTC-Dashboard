@@ -22,7 +22,7 @@ export interface DashAlert {
  * are the findings a monitor would want surfaced without hunting:
  *
  *   integrity — institutes recorded as fake, critical, non-functional or closed
- *   decline   — an institute's score fell 10+ points since its previous programme
+ *   decline   — an institute's score fell 10+ points since its previous monitoring round
  *   quality   — high-severity validation findings per workbook, ID/name conflicts
  *
  * Scoped to the programmes in view; independent of the other filters, so the
@@ -46,8 +46,11 @@ export function useAlerts(): DashAlert[] {
       });
     }
 
+    // Declines compare monitoring rounds (dated batches) only — not an
+    // extension cohort or a different programme the institute also runs.
+    const dated = (slug: string) => { const p = data.programBySlug.get(slug); return !!(p?.period || p?.assessmentDate); };
     for (const [gk, list] of data.institutesByGlobal) {
-      const scored = list.filter((x) => x.score !== null);
+      const scored = list.filter((x) => x.score !== null && dated(x.p));
       for (let k = 1; k < scored.length; k++) {
         const a = scored[k - 1], b = scored[k];
         if (!inScope.has(b.p)) continue;

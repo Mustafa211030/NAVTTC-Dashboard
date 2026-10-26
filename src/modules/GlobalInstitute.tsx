@@ -43,7 +43,7 @@ export function GlobalInstituteModule({ globalKey }: { globalKey: string }) {
   if (!entry || !records.length) return <Card><EmptyState title="Institute not found" hint="No programme carries this institute." /></Card>;
 
   const P = (r: Institute) => data.programBySlug.get(r.p)!;
-  const when = (r: Institute) => (r.visitDate ? fmtMonth(r.visitDate) : P(r).period ? fmtMonth(P(r).period!.to) : P(r).assessmentDate ? fmtMonth(P(r).assessmentDate) : "undated");
+  const when = (r: Institute) => (r.visitDate ? fmtMonth(r.visitDate) : P(r).period ? fmtMonth(P(r).period!.to) : P(r).assessmentDate ? fmtMonth(P(r).assessmentDate) : P(r).reportDate ? `report ${fmtMonth(P(r).reportDate)}` : "undated");
   const st = (r: Institute) => data.standings.get(instKey(r.p, r.instituteKey));
   const fileStem = `NAVTTC_Institute_${globalKey}_${new Date().toISOString().slice(0, 10)}`;
 

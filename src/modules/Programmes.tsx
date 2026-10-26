@@ -26,7 +26,7 @@ export function ProgrammesModule() {
       exc: pi.length ? pi.filter((i) => i.grade === "Excellent").length / pi.length : null,
       poor: pi.length ? pi.filter((i) => i.grade === "Poor" || i.grade === "Closed").length / pi.length : null,
       flagged: pi.filter((i) => i.flagged).length,
-      districts: new Set(pr.map((r) => r.district)).size,
+      districts: new Set(pr.map((r) => r.district).filter((x) => x && x !== "Not recorded")).size,
       trades: new Set(pr.map((r) => r.tradeNorm)).size,
       regions: [...new Set(pr.map((r) => r.region))].sort(),
     };
@@ -107,7 +107,7 @@ export function ProgrammesModule() {
               </tr>
               <tr className="bg-[var(--surface-2)] text-[11px]">
                 <td className="sticky left-0 bg-[var(--surface-2)] px-4 py-2 font-semibold">Assessed</td>
-                {card.map((c) => <td key={c.p.slug} className="px-3 py-2 text-right text-[var(--text-muted)]">{c.p.period ? `${fmtMonth(c.p.period.from)} – ${fmtMonth(c.p.period.to)}` : c.p.assessmentDate ? fmtMonth(c.p.assessmentDate) : "not recorded"}</td>)}
+                {card.map((c) => <td key={c.p.slug} className="px-3 py-2 text-right text-[var(--text-muted)]">{c.p.period ? `${fmtMonth(c.p.period.from)} – ${fmtMonth(c.p.period.to)}` : c.p.assessmentDate ? fmtMonth(c.p.assessmentDate) : c.p.reportDate ? `report ${fmtMonth(c.p.reportDate)}` : "not recorded"}</td>)}
               </tr>
               <tr className="bg-[var(--surface-2)] text-[11px]">
                 <td className="sticky left-0 bg-[var(--surface-2)] px-4 py-2 font-semibold">Regions</td>

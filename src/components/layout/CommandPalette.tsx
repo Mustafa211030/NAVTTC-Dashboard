@@ -27,7 +27,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const all = useMemo<Item[]>(() => {
     const items: Item[] = [];
     for (const n of NAV) {
-      if (scope.mode === "program" && n.portfolioOnly) continue;
+      if (scope.mode === "program" && (n.portfolioOnly || (n.needsPenalties && !scope.program?.hasPenalties))) continue;
       items.push({ id: `page${n.path}`, group: "Pages", label: n.label, sub: scope.label, icon: n.icon, run: () => router.push(scope.href(n.path)) });
     }
     items.push({ id: "page-settings", group: "Pages", label: "Settings", sub: "Theme, accent, density, motion, start-up view", icon: Settings, run: () => router.push("/settings") });

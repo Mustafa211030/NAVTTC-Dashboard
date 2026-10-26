@@ -8,12 +8,42 @@ programme on its own.
 |---|---|---|---|---|---|
 | PMYSDP Batch I | 435 | 198 | 11-criteria checklist (Attendance 50) | Present ÷ Approved | Mar–May 2024 |
 | PMYSDP Batch II | 863 | 264 | 15 criteria (Attendance 50) | CNIC ÷ Approved | Apr–May 2025 |
-| PMYSDP Batch III | 697 | 184 | 16 components (Attendance 35) | CNIC ÷ Approved | May 2026 |
+| PMYSDP Batch III | 697 | 184 | 16 components (Attendance 35) + VTT report penalties | CNIC ÷ Approved | May 2026 |
 | Cluster Based Training Programme B-I | 8 | 6 | 15 criteria | CNIC ÷ Enrolled | not recorded |
 | Cluster Based Initiative (CBI) B-II | 62 | 26 | 15 criteria | CNIC ÷ Enrolled | not recorded |
 | NSIS Industrial Cluster B-II (AJK) | 12 | 10 | 15 criteria | CNIC ÷ Enrolled | not recorded |
+| PMYSDP Batch III Extension | 157 | 71 | VTT summary, PMYSDP pattern | CNIC ÷ Approved | report 19 Oct 2026 |
+| PMYSDP Batch III IT Extension | 117 | 76 | VTT summary, PMYSDP pattern | CNIC ÷ Approved | report 19 Oct 2026 |
+| Skilling Youth of Madrassas B-III | 36 | 21 | VTT summary, special initiatives | CNIC ÷ Approved | report 19 Oct 2026 |
+| She Fixes B-II | 15 | 8 | VTT summary, special initiatives | CNIC ÷ Approved | report 19 Oct 2026 |
+| Overseas Employment B-IV | 16 | 2 | VTT summary, special initiatives | CNIC ÷ Approved | report 19 Oct 2026 |
+| Hospitality & Tourism B-II Ext | 8 | 6 | VTT summary, PMYSDP pattern | CNIC ÷ Approved | report 19 Oct 2026 |
+| Domestic Worker Skill Development | 7 | 4 | VTT summary, special initiatives | CNIC ÷ Approved | report 19 Oct 2026 |
+| BIITT 2026 | 6 | 1 | VTT summary, PMYSDP pattern | CNIC ÷ Approved | report 19 Oct 2026 |
 
-**2,077 assessment rows · 688 programme-institutes · 460 unique institutes · 30 districts · 4 regions.**
+**2,438 assessment rows · 877 programme-institutes · 463 unique institutes · 209 trades · 14 programmes.**
+
+### The programme-wise VTT report (19 Oct 2026)
+
+`data/sources/merged-program-report-2026-10-19.xlsx` is a single sheet (*Batch Wise Report*)
+holding several programmes, told apart by the **Package** column. Programmes registered with
+`source: "vtt-2026-10-19"` and a `package` in `scripts/programs.config.mjs` are read from it.
+
+- **Official score = NAVTTC penalty score.** That is the VTT score less the penalty %
+  (e.g. Trainer below 5: −20%). Grades, ranks and means all use it. The VTT score, penalty %
+  and reason are kept on every row, and the **Penalties** page (`/penalties`, and per programme)
+  shows the rules applied, who was affected and what it cost.
+- **PMYSDP B-III is merged, not replaced.** Its 16-criteria detail stays from its own workbook,
+  and the report's score and penalty are attached row by row (696 of 697 rows matched).
+  The 175 trades the report re-scored are listed on Data Quality; the B-III institute mean
+  moves from 75.29 to 75.55.
+- **Location.** The report's Region is the monitoring office and it has no districts, so
+  institutes known from earlier programmes keep their recorded region and district (143 of
+  the 149 institutes in the new programmes). The other 6 show the office region and "Not recorded".
+- **Rubric maxima are inferred.** The report has no Scoring Criteria sheet; see Methodology.
+
+To load a newer report, drop it into `data/sources/`, point `MERGED_SOURCES` at it, then run
+`npm run data && npm test`. Update the baselines in `tests/data.test.mjs` if the figures changed.
 
 ---
 
@@ -203,8 +233,26 @@ client-rendered from `public/data/portfolio.json` (≈3.7 MB raw, ≈0.4 MB gzip
 
 - Three cluster workbooks have no visit dates, so they sit after the dated PMYSDP
   batches on the timeline.
-- Trades are matched across programmes on normalised names; near-identical spellings
-  that differ by more than case/spacing/punctuation remain separate trades.
+- Trades are matched across programmes on normalised names plus an alias table
+  (`TRADE_ALIASES` in `scripts/programs.config.mjs`) for known misspellings and
+  I/II level suffixes. A new misspelling needs a new alias.
+- "Enrolled" follows each source's own definition (Enrolled, Registered on biometric
+  or Reported candidates); totals add them as trainees.
+
+## Identity and duplicate clean-up (build-data)
+
+- **Duplicate classes** — a row repeating another row's institute, trade, batch and all
+  counts is dropped and logged (`DUPLICATE_ROW_REMOVED`). One found: PMYSDP B-II row 479
+  (repeat of row 475).
+- **Batch numbers** — merged B-III rows take the batch from the VTT report, so Batch I and
+  II classes of the same trade are not mistaken for duplicates.
+- **Names within a programme** — one name per Institute ID (majority spelling;
+  `INSTITUTE_NAME_CORRECTED`).
+- **Names across programmes** — the same ID spelled differently is unified to one name
+  (listed on Data Quality → Names, spellings and duplicates). Different IDs are never merged;
+  same-name pairs under separate IDs are listed for NAVTTC to confirm.
+- **Name-only institutes** — CBI B-II has no IDs; `INSTITUTE_LINKS` maps its differently
+  spelled institutes to their IDs so they count once.
 - PMYSDP B-III keeps the data-quality findings from its first audit (see
   `docs/AUDIT_FINDINGS.md`): a mislabelled stored Attendance % column, components over
   their maximum, and stored totals that disagree with their trade rows.

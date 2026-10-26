@@ -51,7 +51,16 @@ export function ExplorerModule() {
       { id: "attendanceReported", header: "Attendance (stored)", accessorKey: "attendanceReported", cell: (c) => <span className="num text-[var(--text-muted)]">{fmtPct(c.getValue() as number | null)}</span> },
       { id: "release", header: "Release", accessorKey: "release" },
       {
-        id: "tradeScore", header: "Score", accessorFn: (r) => r.tradeScore ?? -1,
+        id: "vttScore", header: "VTT score", accessorFn: (r) => r.vttScore ?? -1,
+        cell: (c) => <span className="num">{fmtScore(c.row.original.vttScore, 1)}</span>,
+      },
+      {
+        id: "penaltyPct", header: "Penalty %", accessorFn: (r) => r.penaltyPct ?? -1,
+        cell: (c) => { const v = c.row.original.penaltyPct; return v ? <span className="num font-semibold text-red-600">−{v}%</span> : <span className="num text-[var(--text-muted)]">{v === 0 ? "0" : "—"}</span>; },
+      },
+      { id: "penaltyReason", header: "Penalty reason", accessorKey: "penaltyReason", cell: (c) => <span className="block max-w-[260px] truncate text-[11px]">{(c.getValue() as string | null) ?? ""}</span> },
+      {
+        id: "tradeScore", header: "Final score", accessorFn: (r) => r.tradeScore ?? -1,
         cell: (c) => <span className="num font-bold" style={{ color: scoreColor(c.row.original.tradeScore) }}>{fmtScore(c.row.original.tradeScore, 1)}</span>,
       },
       {
@@ -80,6 +89,7 @@ export function ExplorerModule() {
   const hidden = [
     "package", "tradeCode", "tradeCategory", "tradeSector", "durationMonths", "division", "attendanceReported", "tradeScoreStored", "release", "visitDate", "verificationRate",
     ...(program ? program.rubric.components.map((c) => `c_${c.key}`) : data.raw.categories.map((c) => `k_${c.key}`)),
+    ...(program && !program.hasPenalties ? ["vttScore", "penaltyPct", "penaltyReason"] : ["penaltyReason"]),
   ];
 
   return (

@@ -1,9 +1,9 @@
 import {
   LayoutDashboard, Building2, MapPinned, Wrench, Gauge, Table2, ShieldCheck, BookOpen, FileStack,
-  Layers, GitCompareArrows, type LucideIcon,
+  Layers, GitCompareArrows, Scale, type LucideIcon,
 } from "lucide-react";
 
-export interface NavItem { path: string; label: string; icon: LucideIcon; hint: string; portfolioOnly?: boolean }
+export interface NavItem { path: string; label: string; icon: LucideIcon; hint: string; portfolioOnly?: boolean; /** only where the programme carries VTT-report penalties */ needsPenalties?: boolean }
 
 /**
  * One module list serves both scopes. Portfolio-only modules (programme
@@ -17,14 +17,15 @@ export const NAV: NavItem[] = [
   { path: "/geography",    label: "Geography",         icon: MapPinned,        hint: "Regions & districts" },
   { path: "/trades",       label: "Trades",            icon: Wrench,           hint: "Enrolment & results" },
   { path: "/performance",  label: "Performance",       icon: Gauge,            hint: "Rubric & drivers" },
+  { path: "/penalties",    label: "Penalties",         icon: Scale,            hint: "NAVTTC deductions", needsPenalties: true },
   { path: "/explorer",     label: "Data Explorer",     icon: Table2,           hint: "Every record" },
   { path: "/reports",      label: "Bulk Reports",      icon: FileStack,        hint: "One page per institute" },
   { path: "/data-quality", label: "Data Quality",      icon: ShieldCheck,      hint: "Validation report" },
   { path: "/methodology",  label: "Methodology",       icon: BookOpen,         hint: "How numbers are made" },
 ];
 
-export function navFor(mode: "portfolio" | "program") {
-  return NAV.filter((n) => mode === "portfolio" || !n.portfolioOnly);
+export function navFor(mode: "portfolio" | "program", program?: { hasPenalties?: boolean } | null) {
+  return NAV.filter((n) => (mode === "portfolio" || !n.portfolioOnly) && (!n.needsPenalties || mode === "portfolio" || program?.hasPenalties));
 }
 
 /** Which module is active, given the path inside the scope ("/" or "/trades" …). */

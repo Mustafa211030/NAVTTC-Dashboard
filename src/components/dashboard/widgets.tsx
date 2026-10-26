@@ -33,7 +33,7 @@ export function ProgramCard({ program, rank }: { program: Program; rank?: number
   const exc = pi.length ? (grades[0].value / pi.length) : null;
   const flagged = pi.filter((i) => i.flagged).length;
   const on = filters.program.includes(program.slug);
-  const dateLabel = program.period ? `${fmtMonth(program.period.from)}${program.period.from.slice(0, 7) !== program.period.to.slice(0, 7) ? " – " + fmtMonth(program.period.to) : ""}` : program.assessmentDate ? fmtMonth(program.assessmentDate) : "Date not recorded";
+  const dateLabel = program.period ? `${fmtMonth(program.period.from)}${program.period.from.slice(0, 7) !== program.period.to.slice(0, 7) ? " – " + fmtMonth(program.period.to) : ""}` : program.assessmentDate ? fmtMonth(program.assessmentDate) : program.reportDate ? `Report ${fmtMonth(program.reportDate)}` : "Date not recorded";
 
   return (
     <Card className={`card-hover rise relative overflow-hidden ${on ? "ring-2" : ""}`} style={on ? { ["--tw-ring-color" as string]: program.color } : undefined}>
@@ -178,6 +178,30 @@ export function FlaggedPanel({ institutes, showProgram, limit = 12 }: { institut
         })}
         {flagged.length > limit && <div className="px-4 py-2 text-center text-[11px] text-[var(--text-muted)]">+ {flagged.length - limit} more — use “Filter to flagged” and open Institutions</div>}
       </div>
+    </Card>
+  );
+}
+
+/** Compact NAVTTC-penalty summary that links to the Penalties page. Renders nothing without penalty data. */
+export function PenaltySummaryCard({ className = "" }: { className?: string }) {
+  const { rows, scope } = useDash();
+  const covered = rows.filter((r) => r.penaltyPct !== null && r.scored);
+  if (!covered.length) return null;
+  const hit = covered.filter((r) => (r.penaltyPct ?? 0) > 0);
+  const lost = hit.reduce((s, r) => s + ((r.vttScore ?? 0) - (r.tradeScore ?? 0)), 0);
+  const insts = new Set(hit.map((r) => `${r.p}|${r.instituteKey}`)).size;
+  return (
+    <Card className={`flex flex-col justify-between p-4 ${className}`}>
+      <div>
+        <div className="flex items-center gap-2 text-[13px] font-semibold"><AlertTriangle size={15} className="text-red-600" /> NAVTTC penalties</div>
+        <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-muted)]">
+          <strong className="text-[var(--text)]">{fmtInt(hit.length)}</strong> of {fmtInt(covered.length)} trades in the programme-wise VTT report
+          lost points to penalties — {fmtInt(insts)} institute{insts === 1 ? "" : "s"}, {lost.toFixed(1)} points in total. Final scores already include them.
+        </p>
+      </div>
+      <Link href={scope.href("/penalties")} className="ctl bg-accent-grad mt-3 inline-flex items-center gap-1.5 self-start rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110">
+        Open penalties <ArrowRight size={13} />
+      </Link>
     </Card>
   );
 }

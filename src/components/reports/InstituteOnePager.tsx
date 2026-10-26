@@ -23,6 +23,7 @@ import type { Standing } from "@/lib/standings";
 
 /** Short column codes for the component matrix, in workbook order (S–AH). */
 const CODES: Record<string, string> = {
+  trainer: "TRNR",
   biometric: "BIO", attendance: "ATT", cctv: "CCTV", trainerPms: "TPMS",
   trainerDegree: "TDEG", trainerExp: "TEXP", tools: "TOOL", consumables: "CONS",
   portfolio: "PORT", tlmImpl: "TLMI", tlmProv: "TLMP", assessment: "ASMT",
@@ -119,6 +120,9 @@ export function InstituteOnePager({
           <div style={{ fontSize: "19pt", fontWeight: 800, lineHeight: 1 }}>{fmtScore(inst.score, 1)}</div>
           <div style={{ fontSize: "7pt", fontWeight: 700, marginTop: "1pt" }}>{grade}</div>
           <div style={{ fontSize: "5.4pt", color: "#444" }}>{TIER_RUBRIC[grade] ?? ""}</div>
+          {inst.vttScore !== null && (inst.penaltyPoints ?? 0) > 0.005 && (
+            <div style={{ fontSize: "5.6pt", color: "#a32020" }}>VTT {fmtScore(inst.vttScore, 1)} − NAVTTC penalty {(inst.penaltyPoints ?? 0).toFixed(1)}</div>
+          )}
           <div style={{ fontSize: "5.8pt", color: "#444" }}>{standing && standing.rank !== null ? `Rank ${standing.tiedWith ? "=" : ""}${standing.rank} of ${standing.of} in ${program.short}` : `Rank ${inst.rank} of ${program.instituteCount} in ${program.short}`}</div>
         </div>
       </div>
@@ -212,7 +216,9 @@ export function InstituteOnePager({
             <th className="r">Code</th><th className="r">Batch</th><th className="r">Cap.</th>
             <th className="r">Enr.</th><th className="r">Pres.</th><th className="r">Abs.</th>
             <th className="r">Drop.</th><th className="r">CNIC</th><th className="r">Att. %</th><th className="r">Pres. %</th>
-            <th className="r">Score</th><th className="r">Row</th>
+            {program.hasPenalties && <th className="r">VTT</th>}
+            {program.hasPenalties && <th className="r">Pen.</th>}
+            <th className="r">{program.hasPenalties ? "Final" : "Score"}</th><th className="r">Row</th>
           </tr>
         </thead>
         <tbody>
@@ -229,6 +235,8 @@ export function InstituteOnePager({
               <td className="r">{r.cnicVerified}</td>
               <td className="r" style={{ fontWeight: 700 }}>{fmtPct(r.attendanceRate, 0)}</td>
               <td className="r" style={{ color: "#555" }}>{fmtPct(r.presenceRate, 0)}</td>
+              {program.hasPenalties && <td className="r">{fmtScore(r.vttScore, 1)}</td>}
+              {program.hasPenalties && <td className="r" style={(r.penaltyPct ?? 0) > 0 ? { color: "#a32020", fontWeight: 700 } : { color: "#666" }}>{(r.penaltyPct ?? 0) > 0 ? `−${r.penaltyPct}%` : r.penaltyPct === null ? "—" : "0"}</td>}
               <td className="r" style={{ fontWeight: 700 }}>{fmtScore(r.tradeScore, 1)}</td>
               <td className="r" style={{ color: "#666" }}>{r.excelRow}</td>
             </tr>
@@ -243,11 +251,19 @@ export function InstituteOnePager({
             <td className="r">{sum("cnicVerified")}</td>
             <td className="r">{fmtPct(inst.attendanceRate, 0)}</td>
             <td className="r">{fmtPct(inst.presenceRate, 0)}</td>
+            {program.hasPenalties && <td className="r">{fmtScore(inst.vttScore, 1)}</td>}
+            {program.hasPenalties && <td className="r" />}
             <td className="r">{fmtScore(inst.score, 1)}</td>
             <td className="r" />
           </tr>
         </tbody>
       </table>
+
+      {rows.some((r) => (r.penaltyPct ?? 0) > 0) && (
+        <div style={{ fontSize: "6pt", color: "#a32020", marginTop: "1.5pt" }}>
+          NAVTTC penalties: {rows.filter((r) => (r.penaltyPct ?? 0) > 0).map((r) => `${r.tradeName}: ${r.penaltyReason ?? `−${r.penaltyPct}%`}`).join(" · ")}
+        </div>
+      )}
 
       {/* ---- every component, for every trade ---- */}
       <h2>Score components by trade — all {components.length} criteria, max 100</h2>

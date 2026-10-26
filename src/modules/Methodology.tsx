@@ -57,7 +57,7 @@ function PortfolioMethod() {
                   <td className="num px-2 py-1.5">{fmtInt(p.instituteCount)}</td>
                   <td className="px-2 py-1.5">{p.rubric.label}</td>
                   <td className="px-2 py-1.5">{p.attendanceRule.label}</td>
-                  <td className="px-2 py-1.5">{p.period ? `${fmtDate(p.period.from)} – ${fmtDate(p.period.to)}` : p.assessmentDate ? fmtDate(p.assessmentDate) : <span className="text-[var(--text-muted)]">not recorded</span>}</td>
+                  <td className="px-2 py-1.5">{p.period ? `${fmtDate(p.period.from)} – ${fmtDate(p.period.to)}` : p.assessmentDate ? fmtDate(p.assessmentDate) : p.reportDate ? <span>report {fmtDate(p.reportDate)}</span> : <span className="text-[var(--text-muted)]">not recorded</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -91,12 +91,23 @@ function PortfolioMethod() {
         </div>
       </Section>
 
+      <Section title="The programme-wise VTT report and NAVTTC penalties">
+        <p>Eight programmes come from one merged workbook, <em>{data.programs.find((p) => p.packageName)?.sourceFile ?? "the programme-wise report"}</em>, where the <strong>Package</strong> column tells the programmes apart. It carries nine summary criteria, the <strong>VTT score</strong>, a <strong>penalty %</strong> with its reason, and the final <strong>NAVTTC penalty score</strong> (VTT × (1 − penalty %)).</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          <li><strong>Official score.</strong> Grades, ranks, means and every chart use the final NAVTTC score. The VTT score and the deduction are shown beside it, and the <em>Penalties</em> page lists every penalised trade.</li>
+          <li><strong>PMYSDP Batch III</strong> appears in the same report. Its 16-criteria detail stays from its own workbook; the report&apos;s score and penalty are attached row by row. Trades the report re-scored are listed under Data Quality (&ldquo;Re-scored in the VTT report&rdquo;).</li>
+          <li><strong>Two rubric patterns.</strong> PMYSDP-pattern programmes (B-III Ext, B-III IT, Hospitality &amp; Tourism, BIITT) score Attendance out of 45; there the report&apos;s Attendance column runs 5 points above its share of the VTT score, so attendance is taken as VTT − the other criteria. Special-initiative programmes (Madrassas, She Fixes, Overseas, Domestic Worker) score Attendance out of 60, and their nine columns sum exactly to the VTT score. Maxima are inferred from the data; the report has no Scoring Criteria sheet.</li>
+          <li><strong>Location.</strong> The report&apos;s Region is the monitoring office (the ICT office also covers GB and AJK) and there is no district, so institutes already known from earlier programmes keep their recorded region and district. The rest show the office region and &ldquo;Not recorded&rdquo;.</li>
+          <li><strong>Headcounts.</strong> Enrolled = Reported candidates; Present = Reported − Absent; attendance = CNIC Verified ÷ Approved Capacity, as in the report&apos;s own percentage column.</li>
+        </ul>
+      </Section>
+
       <Section title="Definitions">{DEFINITIONS}</Section>
       <Section title="Grade bands (identical in every programme)">
         <div className="flex flex-wrap gap-2">{Object.entries(TIER_RUBRIC).map(([g, r]) => <Badge key={g} color={GRADE_COLORS[g]}>{g}: {r}</Badge>)}<Badge color={GRADE_COLORS.Closed}>Closed: workbook override</Badge></div>
       </Section>
       <Section title="Cross-programme institute identity">
-        <p>Institutes are linked across programmes on <strong>Institute ID</strong>. Where a workbook records no ID (CBI Batch II), the institute is identified by name and linked to an ID&apos;d institute only on an exact normalised-name match. {data.raw.meta.instituteCount} programme-institutes resolve to <strong>{data.raw.meta.uniqueInstitutes}</strong> unique institutes. IDs that carry different names in different programmes are listed on the Data Quality page.</p>
+        <p>Institutes are linked across programmes on <strong>Institute ID</strong>. Where a workbook records no ID (CBI Batch II), the institute is identified by name and linked to an ID&apos;d institute on an exact normalised-name match, or through a short reviewed list of spelling differences. The same ID spelled differently across workbooks is shown under one name; a row of an ID carrying another name (corrupted cell, wrong name) takes the ID&apos;s name; and a class entered twice is counted once — every such change is listed on the Data Quality page. Different IDs are never merged, even when the names match. {data.raw.meta.instituteCount} programme-institutes resolve to <strong>{data.raw.meta.uniqueInstitutes}</strong> unique institutes. IDs that carry different names in different programmes are listed on the Data Quality page.</p>
         <p className="mt-2">Trades are matched across programmes on their normalised name (case, spacing and punctuation ignored).</p>
       </Section>
       <Section title="What the data cannot tell you">
@@ -104,7 +115,7 @@ function PortfolioMethod() {
           <li>Gender, age and other demographics — no such field exists in any workbook.</li>
           <li>Certification or employment outcomes — not recorded.</li>
           <li>Sindh, Khyber Pakhtunkhwa and Balochistan — no programme in the portfolio covers them.</li>
-          <li>A true time series within a programme — each workbook is one monitoring round. The timeline compares rounds, and three cluster workbooks carry no visit dates at all.</li>
+          <li>A true time series within a programme — each workbook is one monitoring round. The timeline compares rounds; the cluster workbooks and the programme-wise VTT report carry no visit dates, so those programmes are placed by report date or registry order.</li>
         </ul>
       </Section>
     </>
@@ -131,8 +142,10 @@ function ProgramMethod({ program }: { program: Program }) {
       <PageHeader page="Methodology" title="Methodology & Data Sources" description={`How ${program.name} is scored, ingested and graded.`} />
       <Section title="Source">
         <Row k="Workbook" v={program.sourceFile} />
+        {program.packageName && <Row k="Package in the report" v={program.packageName} />}
+        {program.supplementarySource && <Row k="Penalties & updated scores" v={`${program.supplementarySource}${program.reportDate ? ` (${fmtDate(program.reportDate)})` : ""}`} />}
         <Row k="Worksheet" v={program.sheet} />
-        <Row k="Assessment" v={program.period ? `${fmtDate(program.period.from)} – ${fmtDate(program.period.to)} (Date of Visit)` : program.assessmentDate ? fmtDate(program.assessmentDate) : "Not recorded in the workbook"} />
+        <Row k="Assessment" v={program.period ? `${fmtDate(program.period.from)} – ${fmtDate(program.period.to)} (Date of Visit)` : program.assessmentDate ? fmtDate(program.assessmentDate) : program.reportDate ? `Visit dates not recorded · programme-wise report of ${fmtDate(program.reportDate)}` : "Not recorded in the workbook"} />
         <Row k="Rows × columns" v={`${fmtInt(program.rowCount)} × ${program.columnCount}`} />
         <Row k="Row grain" v="One row = one institute × trade × batch assessment" />
         <Row k="Institutes" v={fmtInt(program.instituteCount)} />
@@ -172,10 +185,21 @@ function ProgramMethod({ program }: { program: Program }) {
       </Section>
 
       {program.notes.length > 0 && (
-        <Section title="Programme-specific notes (from the workbook's Scoring Criteria sheet)">
+        <Section title={program.packageName ? "Programme-specific notes" : "Programme-specific notes (from the workbook's Scoring Criteria sheet)"}>
           <ol className="list-decimal space-y-1.5 pl-4">{program.notes.map((n, i) => <li key={i}>{n}</li>)}</ol>
         </Section>
       )}
+      <Section title="The programme-wise VTT report and NAVTTC penalties">
+        <p>Eight programmes come from one merged workbook, <em>{data.programs.find((p) => p.packageName)?.sourceFile ?? "the programme-wise report"}</em>, where the <strong>Package</strong> column tells the programmes apart. It carries nine summary criteria, the <strong>VTT score</strong>, a <strong>penalty %</strong> with its reason, and the final <strong>NAVTTC penalty score</strong> (VTT × (1 − penalty %)).</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          <li><strong>Official score.</strong> Grades, ranks, means and every chart use the final NAVTTC score. The VTT score and the deduction are shown beside it, and the <em>Penalties</em> page lists every penalised trade.</li>
+          <li><strong>PMYSDP Batch III</strong> appears in the same report. Its 16-criteria detail stays from its own workbook; the report&apos;s score and penalty are attached row by row. Trades the report re-scored are listed under Data Quality (&ldquo;Re-scored in the VTT report&rdquo;).</li>
+          <li><strong>Two rubric patterns.</strong> PMYSDP-pattern programmes (B-III Ext, B-III IT, Hospitality &amp; Tourism, BIITT) score Attendance out of 45; there the report&apos;s Attendance column runs 5 points above its share of the VTT score, so attendance is taken as VTT − the other criteria. Special-initiative programmes (Madrassas, She Fixes, Overseas, Domestic Worker) score Attendance out of 60, and their nine columns sum exactly to the VTT score. Maxima are inferred from the data; the report has no Scoring Criteria sheet.</li>
+          <li><strong>Location.</strong> The report&apos;s Region is the monitoring office (the ICT office also covers GB and AJK) and there is no district, so institutes already known from earlier programmes keep their recorded region and district. The rest show the office region and &ldquo;Not recorded&rdquo;.</li>
+          <li><strong>Headcounts.</strong> Enrolled = Reported candidates; Present = Reported − Absent; attendance = CNIC Verified ÷ Approved Capacity, as in the report&apos;s own percentage column.</li>
+        </ul>
+      </Section>
+
       <Section title="Definitions">{DEFINITIONS}</Section>
     </>
   );

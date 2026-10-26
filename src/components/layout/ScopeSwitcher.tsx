@@ -77,7 +77,7 @@ export function ScopeSwitcher() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12.5px] font-semibold">{p.name}</span>
                     <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
-                      {p.instituteCount} institutes · {fmtCompact(enrolled)} trainees · {p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : "date n/a"}
+                      {p.instituteCount} institutes · {fmtCompact(enrolled)} trainees · {p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : p.reportDate ? `report ${fmtMonth(p.reportDate)}` : "date n/a"}
                     </span>
                   </span>
                   <span className="num text-right">

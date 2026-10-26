@@ -167,7 +167,7 @@ function drawSheet(doc: JsPDF, autoTable: AutoTable, { inst, program, rows, stan
   const nameLines = lines(doc, inst.instituteName, leftW, 11.5, true).slice(0, 2);
   const sub = `Institute ID ${inst.instituteId ?? "not recorded"} · ${inst.district}, ${inst.region} · ${inst.package ?? "—"} · ${inst.assessments} trade${inst.assessments === 1 ? "" : "s"} assessed · ${program.name}`;
   const subLines = lines(doc, sub, leftW, 6.6).slice(0, 2);
-  const bandH = Math.max(22, 3.4 + nameLines.length * 4.6 + subLines.length * 2.8 + 2);
+  const bandH = Math.max(inst.vttScore !== null && (inst.penaltyPoints ?? 0) > 0.005 ? 24.4 : 22, 3.4 + nameLines.length * 4.6 + subLines.length * 2.8 + 2);
   text(doc, "TRAINING PROVIDER INSTITUTE — VERIFICATION REPORT", M, y + 3.4, { size: 5.8, color: 70 });
   let ty = y + 3.4 + 4.6;
   for (const l of nameLines) { text(doc, l, M, ty, { size: 11.5, bold: true }); ty += 4.6; }
@@ -184,6 +184,8 @@ function drawSheet(doc: JsPDF, autoTable: AutoTable, { inst, program, rows, stan
   text(doc, grade, rx, by + 13.4, { size: 7, bold: true, align: "right" });
   text(doc, TIER_RUBRIC[grade] ?? "", rx, by + 15.6, { size: 5.4, color: 70, align: "right" });
   text(doc, rankText(inst, program, standing), rx, by + 17.8, { size: 5.8, color: 70, align: "right" });
+  if (inst.vttScore !== null && (inst.penaltyPoints ?? 0) > 0.005)
+    text(doc, `VTT ${fmtScore(inst.vttScore, 1)} − penalty ${(inst.penaltyPoints ?? 0).toFixed(1)}`, rx, by + 19.9, { size: 5.4, color: [163, 32, 32], align: "right" });
   y += bandH;
   rule(doc, y, 0.21);
   y += 1.6;
@@ -275,23 +277,35 @@ function drawSheet(doc: JsPDF, autoTable: AutoTable, { inst, program, rows, stan
     styles: { font: "helvetica", fontSize: 6.3, cellPadding: { top: 0.45, bottom: 0.45, left: 0.8, right: 0.8 }, textColor: 0, lineColor: [215, 222, 230] as [number, number, number], lineWidth: { bottom: 0.1 }, overflow: "ellipsize" as const },
     headStyles: { fontStyle: "bold" as const, fontSize: 5.9, lineColor: [51, 51, 51] as [number, number, number], lineWidth: { bottom: 0.21 } },
   };
+  const pen = Boolean(program.hasPenalties);
+  const lastCol = pen ? 14 : 12;
   const right = (from: number, to: number) => Object.fromEntries(Array.from({ length: to - from + 1 }, (_, k) => [from + k, { halign: "right" as const }]));
   autoTable(doc, {
     ...tableBase,
     startY: y,
-    head: [["TRADE", "CODE", "BATCH", "CAP.", "ENR.", "PRES.", "ABS.", "DROP.", "CNIC", "ATT. %", "PRES. %", "SCORE", "ROW"].map((h, k) => ({ content: h, styles: k ? { halign: "right" } : {} }))],
+    head: [["TRADE", "CODE", "BATCH", "CAP.", "ENR.", "PRES.", "ABS.", "DROP.", "CNIC", "ATT. %", "PRES. %", ...(pen ? ["VTT", "PEN."] : []), pen ? "FINAL" : "SCORE", "ROW"].map((h, k) => ({ content: h, styles: k ? { halign: "right" } : {} }))],
     body: [
       ...rows.map((r) => [safe(r.tradeName), r.tradeCode ?? "", r.batch ?? "—", r.approvedCapacity, r.enrolled, r.present, r.absent, r.droppedOut, r.cnicVerified,
-        fmtPct(r.attendanceRate, 0), fmtPct(r.presenceRate, 0), fmtScore(r.tradeScore, 1), r.excelRow].map(String)),
+        fmtPct(r.attendanceRate, 0), fmtPct(r.presenceRate, 0),
+        ...(pen ? [fmtScore(r.vttScore, 1), (r.penaltyPct ?? 0) > 0 ? `-${r.penaltyPct}%` : r.penaltyPct === null ? "—" : "0"] : []),
+        fmtScore(r.tradeScore, 1), r.excelRow].map(String)),
       ["Institute total", "", "", sum("approvedCapacity"), sum("enrolled"), sum("present"), sum("absent"), sum("droppedOut"), sum("cnicVerified"),
-        fmtPct(inst.attendanceRate, 0), fmtPct(inst.presenceRate, 0), fmtScore(inst.score, 1), ""].map(String),
+        fmtPct(inst.attendanceRate, 0), fmtPct(inst.presenceRate, 0), ...(pen ? [fmtScore(inst.vttScore, 1), ""] : []), fmtScore(inst.score, 1), ""].map(String),
     ],
-    columnStyles: { 0: { cellWidth: W * 0.31 }, ...right(1, 12), 9: { halign: "right", fontStyle: "bold" }, 11: { halign: "right", fontStyle: "bold" }, 10: { halign: "right", textColor: 85 }, 12: { halign: "right", textColor: 100 } },
+    columnStyles: { 0: { cellWidth: W * (pen ? 0.27 : 0.31) }, ...right(1, lastCol), 9: { halign: "right", fontStyle: "bold" }, [lastCol - 1]: { halign: "right", fontStyle: "bold" }, 10: { halign: "right", textColor: 85 }, [lastCol]: { halign: "right", textColor: 100 } },
     didParseCell: (d) => {
-      if (d.section === "body" && d.row.index === rows.length) { d.cell.styles.fontStyle = "bold"; d.cell.styles.lineWidth = { top: 0.21 }; d.cell.styles.lineColor = [51, 51, 51]; d.cell.styles.textColor = 0; }
+      if (d.section === "body" && d.row.index === rows.length) { d.cell.styles.fontStyle = "bold"; d.cell.styles.lineWidth = { top: 0.21 }; d.cell.styles.lineColor = [51, 51, 51]; d.cell.styles.textColor = 0; return; }
+      if (pen && d.section === "body" && d.column.index === 12 && (rows[d.row.index]?.penaltyPct ?? 0) > 0) { d.cell.styles.textColor = [163, 32, 32]; d.cell.styles.fontStyle = "bold"; }
     },
   });
   y = ((doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY) + 2.4;
+  const penRows = rows.filter((r) => (r.penaltyPct ?? 0) > 0);
+  if (penRows.length) {
+    const pl = lines(doc, `NAVTTC penalties: ${penRows.map((r) => `${r.tradeName}: ${r.penaltyReason ?? `-${r.penaltyPct}%`}`).join(" · ")}`, W, 6);
+    y = ensure(doc, y, pl.length * 2.5 + 2);
+    pl.forEach((l, k) => text(doc, l, M, y + 1.6 + k * 2.5, { size: 6, color: [163, 32, 32] }));
+    y += pl.length * 2.5 + 1.6;
+  }
 
   /* ---- component matrix ---- */
   y = ensure(doc, y, 22);

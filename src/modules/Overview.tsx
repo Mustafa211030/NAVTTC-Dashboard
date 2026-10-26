@@ -7,7 +7,7 @@ import { useDash } from "@/components/providers/FilterProvider";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { KPICard, type KpiBreakdown } from "@/components/dashboard/KPICard";
 import { useBatchTrend } from "@/components/dashboard/useBatchTrend";
-import { ProgramCard, RankPanel, FlaggedPanel, SectionTitle } from "@/components/dashboard/widgets";
+import { ProgramCard, RankPanel, FlaggedPanel, SectionTitle, PenaltySummaryCard } from "@/components/dashboard/widgets";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { RankedBars, GradeMix, HeatmapCard, CategoryProfile, FunnelCard, SpreadCard, DistributionCard, ScatterCard } from "@/components/charts/blocks";
 import { ComponentBars } from "@/components/charts/ComponentBars";
@@ -166,6 +166,7 @@ function PortfolioOverview() {
       </div>
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
         <div className="lg:col-span-2"><FlaggedPanel institutes={institutes} showProgram /></div>
+        <div className="grid gap-3">
         <Card className="flex flex-col justify-between p-4">
           <div>
             <div className="flex items-center gap-2 text-[13px] font-semibold"><GitCompareArrows size={15} className="text-brand-600" /> Institute journeys</div>
@@ -178,6 +179,8 @@ function PortfolioOverview() {
             Open journeys <ArrowRight size={13} />
           </Link>
         </Card>
+        <PenaltySummaryCard />
+        </div>
       </div>
       <p className="mt-6 text-[11px] text-[var(--text-muted)]">Data: {data.raw.meta.rowCount.toLocaleString()} rows from {data.programs.length} workbooks · generated {fmtDate(data.raw.meta.generatedAt.slice(0, 10))}.</p>
     </>
@@ -189,13 +192,13 @@ function TimelineCard({ programs, className }: { programs: Program[]; className?
   const { rows, institutes, scope } = useDash();
   const [range, setRange] = useState<"1" | "2" | "all">("all");
   const sorted = useMemo(() => [...programs].sort((a, b) => {
-    const da = a.period?.to ?? a.assessmentDate ?? "9999"; const db = b.period?.to ?? b.assessmentDate ?? "9999";
+    const da = a.period?.to ?? a.assessmentDate ?? a.reportDate ?? "9999"; const db = b.period?.to ?? b.assessmentDate ?? b.reportDate ?? "9999";
     return da === db ? a.order - b.order : da.localeCompare(db);
   }).map((p) => {
     const st = statOf(p.slug, rows.filter((r) => r.p === p.slug));
     const pi = institutes.filter((i) => i.p === p.slug && i.score !== null);
     const mean = pi.length ? pi.reduce((s, i) => s + (i.score as number), 0) / pi.length : null;
-    const when = p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : "undated";
+    const when = p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : p.reportDate ? `report ${fmtMonth(p.reportDate)}` : "undated";
     return { p, st, mean, when };
   }), [programs, rows, institutes]);
   void scope;
@@ -268,7 +271,7 @@ function ProgramOverview({ program }: { program: Program }) {
     return (<><PageHeader page="Overview" title={`${program.name} — Overview`} /><Card><EmptyState onClear={reset} /></Card></>);
   }
 
-  const when = program.period ? `${fmtDate(program.period.from)} – ${fmtDate(program.period.to)}` : program.assessmentDate ? fmtDate(program.assessmentDate) : "Visit dates not recorded in the workbook";
+  const when = program.period ? `${fmtDate(program.period.from)} – ${fmtDate(program.period.to)}` : program.assessmentDate ? fmtDate(program.assessmentDate) : program.reportDate ? `Programme-wise report of ${fmtDate(program.reportDate)}` : "Visit dates not recorded in the workbook";
 
   return (
     <>
@@ -350,7 +353,10 @@ function ProgramOverview({ program }: { program: Program }) {
         <RankPanel title="Top performing institutes" items={top} tone="good" viewAll={`/p/${program.slug}/institutions`} />
         <RankPanel title="Institutes requiring attention" items={bottom} tone="bad" viewAll={`/p/${program.slug}/institutions`} />
       </div>
-      <div className="mt-3"><FlaggedPanel institutes={institutes} /></div>
+      <div className={`mt-3 grid gap-3 ${program.hasPenalties ? "lg:grid-cols-3" : ""}`}>
+        <div className={program.hasPenalties ? "lg:col-span-2" : ""}><FlaggedPanel institutes={institutes} /></div>
+        {program.hasPenalties && <PenaltySummaryCard />}
+      </div>
 
       <SectionTitle hint="Whole programmes, unfiltered">In the portfolio</SectionTitle>
       <Card className="overflow-hidden">

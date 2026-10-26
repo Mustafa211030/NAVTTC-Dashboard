@@ -57,8 +57,9 @@ export function computeKpis(rows: AssessmentRow[], insts: Institute[]): Kpis {
     uniqueInstitutes: new Set(insts.map((i) => i.globalKey)).size,
     assessments: rows.length,
     trades: new Set(rows.map((r) => r.tradeNorm)).size,
-    districts: new Set(rows.map((r) => r.district)).size,
-    regions: new Set(rows.map((r) => r.region)).size,
+    // "Not recorded" is a missing value, not a place — it is never counted.
+    districts: new Set(rows.map((r) => r.district).filter((x) => x && x !== "Not recorded")).size,
+    regions: new Set(rows.map((r) => r.region).filter((x) => x && x !== "NOT RECORDED")).size,
     approvedCapacity: capacity,
     enrolled, droppedOut, present,
     absent: sum(rows, "absent"),
@@ -139,6 +140,9 @@ export function institutesFromRows(rows: AssessmentRow[], base: Map<string, Inst
       utilizationRate: pooled(enrolled, capacity),
       score,
       scoreStored: b?.scoreStored ?? null,
+      vttScore: scored.some((r) => r.vttScore !== null) ? mean(scored.map((r) => (r.vttScore ?? r.rubricScore ?? r.tradeScore) as number)) : null,
+      penaltyPoints: null,
+      penalisedTrades: g.filter((r) => (r.penaltyPct ?? 0) > 0).length,
       grade: gradeOverride ?? bandOf(score) ?? "Unscored",
       gradeReported: b?.gradeReported ?? null,
       gradeOverride,
@@ -150,6 +154,7 @@ export function institutesFromRows(rows: AssessmentRow[], base: Map<string, Inst
       rank: 0,
     });
   }
+  for (const i of out) i.penaltyPoints = i.vttScore !== null && i.score !== null ? i.vttScore - i.score : null;
   out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
   out.forEach((i, idx) => { i.rank = idx + 1; });
   return out;

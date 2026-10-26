@@ -1,4 +1,5 @@
 "use client";
+import type { Portfolio } from "@/types";
 import { useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
 import { AlertTriangle, AlertCircle, Info, Wrench, CheckCircle2, ClipboardList } from "lucide-react";
@@ -35,6 +36,21 @@ const CODE_LABELS: Record<string, { label: string; why: string }> = {
   INSTITUTE_MULTI_DISTRICT: { label: "Institute in several districts", why: "An institute's trade rows carry different districts." },
   UNMAPPED_SCORE_COLUMN: { label: "Score column not in rubric", why: "A score column was not recognised by the programme's rubric and was ignored." },
   RUBRIC_NOT_100: { label: "Rubric does not total 100", why: "The configured criteria maxima do not add up to 100." },
+  SCORE_UPDATED: { label: "Re-scored in the VTT report", why: "The 19 Oct 2026 programme-wise report gives this trade a different score from the original workbook. The report's score is used; the 16-criteria breakdown still shows the workbook values." },
+  VTT_ROW_NOT_IN_WORKBOOK: { label: "VTT report row not in the workbook", why: "The report lists a trade the programme's own workbook does not have, so it carries no criteria detail and is not added." },
+  NOT_IN_VTT_REPORT: { label: "Workbook row missing from the VTT report", why: "No penalty or updated score exists for this trade; its criteria sum is used as the final score." },
+  VTT_REPORT_MERGED: { label: "VTT report merged", why: "Penalties and updated scores from the programme-wise VTT report were attached to this programme's rows." },
+  VTT_SCORE_MISMATCH: { label: "VTT score ≠ sum of its criteria", why: "The report's VTT score does not equal the sum of its nine criteria columns." },
+  PENALTY_MISMATCH: { label: "Penalty score ≠ VTT × (1 − penalty %)", why: "The NAVTTC penalty score does not follow from the VTT score and the stated penalty percentage." },
+  ATTENDANCE_FROM_VTT: { label: "Attendance taken from the VTT total", why: "In the PMYSDP-pattern rubric the report's Attendance column runs 5 points above its share of the VTT score, so attendance is computed as VTT − the other criteria." },
+  LOCATION_FROM_OFFICE: { label: "Region from monitoring office, no district", why: "The VTT report has no district and its Region is the monitoring office. Institutes not seen in earlier programmes keep the office region and show 'Not recorded' for district." },
+  NAME_SUFFIX_VARIANTS: { label: "Institute name with/without location suffix", why: "The same TSP ID appears with and without ', <city>' appended. The shorter name is displayed." },
+  DUPLICATE_ROW: { label: "Duplicate trade row", why: "The same Institute Trade ID and batch appear twice; both rows are kept and counted." },
+  INSTITUTE_NAME_CORRECTED: { label: "Wrong name on an institute's row", why: "One row of an Institute ID carried a different or corrupted name (e.g. text from other cells, or another institute's name). The name on the ID's other rows is used, so the institute is not split in two." },
+  DUPLICATE_ROW_REMOVED: { label: "Duplicate row removed", why: "The same class (institute, trade, batch, capacity, enrolment, present, absent, dropped out) was entered twice. The later copy is excluded from every count, rate and score." },
+  BATCH_FROM_REPORT: { label: "Batch number corrected from the VTT report", why: "The workbook records most classes as batch 1, so two classes of the same trade looked like duplicates. The report's Batch I / II / III keeps them apart." },
+  TRADE_NAME_HARMONISED: { label: "Trade spelling harmonised", why: "The same trade is spelled differently in different workbooks (e.g. 'Driver (HTV)' / 'HTV Driver'). One name is used so the trade is counted and compared once." },
+  UNMAPPED_SCORE_VALUE: { label: "Score in a column outside the rubric", why: "A criterion column that is not part of this programme's rubric carries a value." },
 };
 const ICONS = { high: AlertTriangle, medium: AlertCircle, low: Info };
 
@@ -213,13 +229,15 @@ export function DataQualityModule() {
         {issues.length > shown.length && <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--text-muted)]">Showing {shown.length} of {issues.length} issues. Narrow by programme, severity or type to see the rest.</p>}
       </Card>
 
+      {!scope.program && data.raw.identity && <IdentityReview identity={data.raw.identity} programs={data.programBySlug} />}
+
       {!scope.program && data.raw.crossProgramIssues.length > 0 && (
         <>
           <SectionTitle>Cross-programme identity</SectionTitle>
           <Card className="overflow-hidden">
             <div className="border-b border-[var(--border)] px-4 py-3">
-              <h3 className="text-[13px] font-semibold">Same Institute ID, different names</h3>
-              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">These IDs are linked across programmes for the journey view. Most are spelling or rebranding; verify any that look like two different institutes.</p>
+              <h3 className="text-[13px] font-semibold">Same Institute ID, genuinely different names</h3>
+              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">Spelling variants are already harmonised (above). These remaining IDs carry a different name in a later programme — a rebrand, or an ID recorded against the wrong institute. They stay linked; please verify.</p>
             </div>
             <table className="w-full text-xs"><tbody>
               {data.raw.crossProgramIssues.map((c) => (
@@ -275,5 +293,63 @@ function Stat({ label, value, sub, icon: Icon, color }: { label: string; value: 
       <div className="num mt-1.5 text-xl font-bold leading-none">{value}</div>
       <div className="mt-1 text-[10px] text-[var(--text-muted)]">{sub}</div>
     </Card>
+  );
+}
+
+/** Identity clean-up the pipeline applied across programmes, for review. */
+function IdentityReview({ identity, programs }: { identity: NonNullable<Portfolio["identity"]>; programs: Map<string, { short: string; color: string }> }) {
+  return (
+    <>
+      <SectionTitle hint="Applied automatically — listed so every change can be checked">Names, spellings and duplicates</SectionTitle>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card className="overflow-hidden">
+          <div className="border-b border-[var(--border)] px-4 py-3">
+            <h3 className="text-[13px] font-semibold">Institute spellings unified ({identity.nameHarmonised.length})</h3>
+            <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">Same Institute ID spelled differently across workbooks. Every programme now shows the first name; nothing is merged that has a different ID.</p>
+          </div>
+          <div className="max-h-[360px] overflow-auto">
+            <table className="w-full text-xs"><tbody>
+              {identity.nameHarmonised.map((h) => (
+                <tr key={h.key} className="border-b border-[var(--border)] align-top last:border-0">
+                  <td className="num w-20 px-4 py-2 font-semibold">{h.key.replace("id-", "ID ")}</td>
+                  <td className="px-2 py-2 pr-4">
+                    <div className="font-medium">{h.name}</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">was: {h.variants.join("  ·  ")}</div>
+                    <div className="mt-1 flex flex-wrap gap-x-2 text-[10px]">{h.programmes.map((p) => <span key={p} className="whitespace-nowrap" style={{ color: programs.get(p)?.color }}>{programs.get(p)?.short ?? p}</span>)}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody></table>
+          </div>
+        </Card>
+        <div className="grid content-start gap-3">
+          <Card className="overflow-hidden">
+            <div className="border-b border-[var(--border)] px-4 py-3">
+              <h3 className="text-[13px] font-semibold">Same name, separate Institute IDs ({identity.sameNameDifferentIds.length})</h3>
+              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">Each ID is its own TSP registration with its own classes, so they are counted separately and no rows are duplicated. If any is one institute registered twice, NAVTTC should confirm which ID is current.</p>
+            </div>
+            <table className="w-full text-xs"><tbody>
+              {identity.sameNameDifferentIds.map((x) => (
+                <tr key={x.ids.join("-")} className="border-b border-[var(--border)] last:border-0">
+                  <td className="num w-32 px-4 py-2 font-semibold">{x.ids.map((i) => `ID ${i}`).join(" / ")}</td>
+                  <td className="px-4 py-2 text-[var(--text-muted)]">{x.names.join("  ·  ")}</td>
+                </tr>
+              ))}
+            </tbody></table>
+          </Card>
+          <Card className="overflow-hidden">
+            <div className="border-b border-[var(--border)] px-4 py-3">
+              <h3 className="text-[13px] font-semibold">Name-only institutes linked to an ID ({identity.linkedByName.length})</h3>
+              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">CBI Batch II records no Institute IDs. These are the same institutes as ID&apos;d ones in other programmes, spelled differently, so they count once.</p>
+            </div>
+            <table className="w-full text-xs"><tbody>
+              {identity.linkedByName.map((x) => (
+                <tr key={x.name} className="border-b border-[var(--border)] last:border-0"><td className="num w-24 px-4 py-2 font-semibold">ID {x.id}</td><td className="px-4 py-2 font-mono text-[11px] text-[var(--text-muted)]">{x.name}</td></tr>
+              ))}
+            </tbody></table>
+          </Card>
+        </div>
+      </div>
+    </>
   );
 }

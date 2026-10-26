@@ -127,6 +127,26 @@ export function InstituteProfileModule({ instituteKey }: { instituteKey: string 
           </Card>
         )}
 
+        {program.hasPenalties && inst.vttScore !== null && (
+          <Card className={`print-avoid mb-4 border-l-4 p-3 ${inst.penalisedTrades ? "border-l-amber-500" : "border-l-emerald-500"}`}>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
+              <span className="font-semibold">NAVTTC penalty check</span>
+              <span>VTT score <strong className="num">{fmtScore(inst.vttScore, 2)}</strong></span>
+              {inst.penalisedTrades > 0
+                ? <span className="text-red-600">−{(inst.penaltyPoints ?? 0).toFixed(2)} points · {inst.penalisedTrades} of {inst.assessments} trade{inst.assessments === 1 ? "" : "s"} penalised</span>
+                : <span className="text-emerald-700 dark:text-emerald-300">no penalties</span>}
+              <span>Final NAVTTC score <strong className="num" style={{ color: scoreColor(inst.score) }}>{fmtScore(inst.score, 2)}</strong></span>
+            </div>
+            {instRows.some((r) => (r.penaltyPct ?? 0) > 0) && (
+              <ul className="mt-2 space-y-0.5 text-[11px] text-[var(--text-muted)]">
+                {instRows.filter((r) => (r.penaltyPct ?? 0) > 0).map((r) => (
+                  <li key={r.id}><span className="font-medium text-[var(--text)]">{r.tradeName}</span> — {r.penaltyReason ?? `−${r.penaltyPct}%`}</li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+
         <Card className="print-avoid mb-4 grid grid-cols-2 divide-x divide-y divide-[var(--border)] sm:grid-cols-4 lg:grid-cols-8 lg:divide-y-0">
           <div className="px-4 py-2.5">
             <div className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Grade</div>
@@ -135,7 +155,7 @@ export function InstituteProfileModule({ instituteKey }: { instituteKey: string 
           </div>
           <div className="px-4 py-2.5">
             <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
-              Score <Tooltip label={<>Mean of this institute&apos;s {inst.assessments} trade scores on the {program.rubric.components.length}-criteria rubric.</>} />
+              Score <Tooltip label={<>Mean of this institute&apos;s {inst.assessments} trade scores on the {program.rubric.components.length}-criteria rubric{program.hasPenalties ? ", after NAVTTC penalties" : ""}.</>} />
             </div>
             <div className="num mt-0.5 text-base font-bold leading-none" style={{ color: scoreColor(inst.score) }}>{fmtScore(inst.score)}</div>
             <div className="mt-1"><ProgressBar value={inst.score ?? 0} max={100} color={scoreColor(inst.score)} /></div>
@@ -195,7 +215,7 @@ export function InstituteProfileModule({ instituteKey }: { instituteKey: string 
             <table className="w-full text-xs">
               <thead className="bg-[var(--surface-2)]">
                 <tr>
-                  {["Trade", "Batch", "Capacity", program.enrolledLabel, "Present", "Absent", "Dropped", "CNIC", "Attendance %", "Presence %", ...program.rubric.components.map((c) => c.label), "Score", "Row"].map((h) => (
+                  {["Trade", "Batch", "Capacity", program.enrolledLabel, "Present", "Absent", "Dropped", "CNIC", "Attendance %", "Presence %", ...program.rubric.components.map((c) => c.label), ...(program.hasPenalties ? ["VTT", "Penalty"] : []), program.hasPenalties ? "Final" : "Score", "Row"].map((h) => (
                     <th key={h} scope="col" className="whitespace-nowrap border-b border-[var(--border)] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{h}</th>
                   ))}
                 </tr>
@@ -217,6 +237,8 @@ export function InstituteProfileModule({ instituteKey }: { instituteKey: string 
                       const v = r.components[c.key] ?? 0;
                       return <td key={c.key} className={`num px-3 py-1.5 ${r.scored && v === 0 ? "font-semibold text-red-600" : ""}`}>{r.scored ? (Number.isInteger(v) ? v : v.toFixed(2)) : "—"}</td>;
                     })}
+                    {program.hasPenalties && <td className="num px-3 py-1.5">{fmtScore(r.vttScore, 1)}</td>}
+                    {program.hasPenalties && <td className={`num px-3 py-1.5 ${(r.penaltyPct ?? 0) > 0 ? "font-semibold text-red-600" : "text-[var(--text-muted)]"}`} title={r.penaltyReason ?? undefined}>{(r.penaltyPct ?? 0) > 0 ? `−${r.penaltyPct}%` : r.penaltyPct === null ? "—" : "0"}</td>}
                     <td className="num px-3 py-1.5 font-bold" style={{ color: scoreColor(r.tradeScore) }}>{fmtScore(r.tradeScore, 1)}</td>
                     <td className="num px-3 py-1.5 text-[var(--text-muted)]">{r.excelRow}</td>
                   </tr>

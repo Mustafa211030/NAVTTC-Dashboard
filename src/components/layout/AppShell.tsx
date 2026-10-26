@@ -162,11 +162,11 @@ function Sidebar({ rail, qs, current, isSettings, onCollapse }: {
     return [...mm.entries()];
   }, [data]);
 
-  const moduleLinks = (base: string, mode: "portfolio" | "program", color: string) => (
+  const moduleLinks = (base: string, mode: "portfolio" | "program", color: string, prog?: { hasPenalties?: boolean }) => (
     <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
       <div className={`space-y-px pb-1 pt-0.5 ${rail ? "" : "ml-[15px] border-l border-white/[.08] pl-2"}`}>
-        {navFor(mode).map(({ path, label, icon: Icon }) => {
+        {navFor(mode, prog).map(({ path, label, icon: Icon }) => {
           const href = (base + (path === "/" ? "" : path)) || "/";
           const on = !isSettings && current === path;
           return (
@@ -231,7 +231,7 @@ function Sidebar({ rail, qs, current, isSettings, onCollapse }: {
                     )}
                   </Link>
                   <AnimatePresence initial={false}>
-                    {on && <div key={p.slug}>{moduleLinks(programBase(p.slug), "program", p.color)}</div>}
+                    {on && <div key={p.slug}>{moduleLinks(programBase(p.slug), "program", p.color, p)}</div>}
                   </AnimatePresence>
                 </div>
               );
@@ -299,7 +299,9 @@ function DataStatus() {
   const close = useCallback(() => setOpen(false), []);
   const span = (() => {
     const ds = scope.programs.flatMap((p) => [p.period?.from, p.period?.to, p.assessmentDate]).filter(Boolean).sort() as string[];
-    return ds.length ? `${fmtMonth(ds[0])} – ${fmtMonth(ds[ds.length - 1])}` : "Undated";
+    if (ds.length) return `${fmtMonth(ds[0])} – ${fmtMonth(ds[ds.length - 1])}`;
+    const rd = scope.programs.map((p) => p.reportDate).filter(Boolean).sort() as string[];
+    return rd.length ? `Report ${fmtMonth(rd[rd.length - 1])}` : "Undated";
   })();
   return (
     <>
@@ -321,7 +323,7 @@ function DataStatus() {
                 <span className="block truncate font-medium">{p.short}</span>
                 <span className="block truncate text-[10.5px] text-[var(--text-muted)]">{p.sourceFile}</span>
               </span>
-              <span className="num text-right text-[10.5px] text-[var(--text-muted)]">{p.rowCount}<span className="block">{p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : "undated"}</span></span>
+              <span className="num text-right text-[10.5px] text-[var(--text-muted)]">{p.rowCount}<span className="block">{p.period ? fmtMonth(p.period.to) : p.assessmentDate ? fmtMonth(p.assessmentDate) : p.reportDate ? `report ${fmtMonth(p.reportDate)}` : "undated"}</span></span>
             </li>
           ))}
         </ul>

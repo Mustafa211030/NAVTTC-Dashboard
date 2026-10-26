@@ -128,7 +128,7 @@ export function ReportsModule() {
                 the same layout as the individual one-pager.
               </p>
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               {pdf.state === "building" ? (
                 <Button onClick={() => abort.current?.abort()}><X size={14} /> Cancel</Button>
               ) : (
